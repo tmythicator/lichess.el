@@ -1,0 +1,52 @@
+#+TITLE: lichess.el
+#+OPTIONS: toc:nil num:nil
+#+AUTHOR: Alexandr Timchenko
+
+A minimal Emacs client for the [[https://lichess.org/api][Lichess API]].
+
+* (WIP) Features
+- [X] Live Lichess TV channels list with =M-x lichess-tv=
+- [X] Inspect any TV channel with =M-x lichess-tv-debug=
+- [X] Interactive umbrella dispatcher =M-x lichess=
+- [ ] Watch a single game (planned =lichess-game.el=)
+- [ ] Live board stream (NDJSON)
+- [ ] Submit moves and play
+- [ ] Puzzles & tactics
+- [ ] Challenge API
+- [ ] MELPA packaging
+
+* Installation
+Clone and add to your load path:
+#+begin_src elisp
+(add-to-list 'load-path "~/path/to/emacs-lichess")
+(require 'lichess)
+#+end_src
+
+
+* Authentication
+Some commands require a personal API token:
+
+1. Go to [[https://lichess.org/account/oauth/token]]
+2. Create a token.
+3. In Emacs:
+#+begin_src elisp
+(setq lichess-token "YOUR_TOKEN_HERE")
+#+end_src
+
+* Usage
+- =M-x lichess= -> main entrypoint, shows dispatcher to all subcommands
+  - =TV: channels= -> opens Lichess TV
+  - =Diagnose account= -> checks token & active games
+  - =TV: debug JSON= -> prints raw /api/tv/channels JSON
+- =M-x lichess-tv= -> show TV channels list
+  - [X] g refreshes list
+  - [ ] RET opens game
+- =M-x lichess-tv-debug= ->  dump raw JSON
+- =M-x lichess-diagnose= -> check auth and active games
+
+* Development and debugging
+- Diagnostics via =M-x lichess-diagnose= (Authorization check, active games)
+- Inspect any TV channel with =M-x lichess-tv-debug=
+
+* License
+GPL-3.0-or-later See LICENSE for details.

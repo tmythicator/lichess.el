@@ -1,0 +1,6 @@
+# Emacs artifacts
+*~
+# compiled elisp
+*.elc
+# backups
+*.bak
