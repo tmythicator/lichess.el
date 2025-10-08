@@ -59,8 +59,8 @@
   (let ((buf (get-buffer lichess-diagnose--buf)))
     (when (buffer-live-p buf)
       (lichess-core-with-buf buf
-                             (lambda () (goto-char (point-max))
-                               (insert (apply #'format fmt args) "\n"))))))
+        (goto-char (point-max))
+        (insert (apply #'format fmt args) "\n")))))
 
 ;;;###autoload
 (defun lichess ()
@@ -80,9 +80,8 @@
     (with-current-buffer buf
       (lichess-core-mode))
     (lichess-core-with-buf buf
-                           (lambda ()
-                             (erase-buffer)
-                             (insert "Lichess diagnostics\n\n")))
+      (erase-buffer)
+      (insert "Lichess diagnostics\n\n"))
     (pop-to-buffer buf))
   (if (not (and (stringp lichess-token) (> (length lichess-token) 10)))
       (lichess--dbgln "Set lichess-token for authenticated calls.")

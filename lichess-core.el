@@ -33,6 +33,14 @@
   (read-only-mode 1)
   (setq truncate-lines t))
 
+(defun lichess-core-open-at-point ()
+  "Open game at point by text-property 'lichess-game-id'."
+  (interactive)
+  (let* ((id (get-text-property (point) 'lichess-game-id)))
+    (if id
+        (browse-url (format "https://lichess.org/%s" id))
+      (message "No game id on this line."))))
+
 ;;;; HTTP/JSON
 (defun lichess-core-fetch-json (url cb &optional headers)
   "GET URL with HEADERS, parse JSON; call CB with (STATUS . JSON-or-nil)."
@@ -53,58 +61,19 @@
      nil t)))
 
 ;;;; Buffers
-(defun lichess-core-with-buf (buf fn)
-  "Run FN in BUF, forcibly disabling any read-only protection."
-  (when (buffer-live-p buf)
-    (with-current-buffer buf
-      (let ((inhibit-read-only t)
-            (buffer-read-only nil))
-        (save-excursion
-          (save-restriction
-            (widen)
-            (funcall fn)))))))
-
-
-(defun lichess-core-open-at-point ()
-  "Open game at point by text-property 'lichess-game-id'."
-  (interactive)
-  (let* ((id (get-text-property (point) 'lichess-game-id)))
-    (if id
-        (browse-url (format "https://lichess.org/%s" id))
-      (message "No game id on this line."))))
-
-;; ---- JSON utils ----
-(defun lichess-core-prop (alist &rest keys)
-  "Safe nested alist get."
-  (let ((x alist))
-    (while (and keys x) (setq x (alist-get (pop keys) x))) x))
-
-(defun lichess-core-fmt-player (side)
-  "Return \"GM Name (2870)\" / \"Name (2870)\" / \"Anonymous\" from SIDE."
-  (let* ((user   (or (alist-get 'user side) side))
-         (title  (or (alist-get 'title user) (alist-get 'title side)))
-         (name   (or (alist-get 'name user)
-                     (alist-get 'username user)
-                     (alist-get 'name side)
-                     (alist-get 'username side)))
-         (rating (or (alist-get 'rating side) (alist-get 'rating user))))
-    (if name
-        (string-trim
-         (format "%s%s%s"
-                 (or title "")
-                 (if title " " "")
-                 (if rating (format "%s (%s)" name rating) name)))
-      "Anonymous")))
-
-(defun lichess-core-game-line (j)
-  "Build one-line game summary from /api/game/{id} JSON J."
-  (let* ((id    (or (alist-get 'id j) (alist-get 'gameId j)))
-         (white (or (lichess-core-fmt-player (lichess-core-prop j 'players 'white))
-                    (lichess-core-fmt-player (alist-get 'white j))))
-         (black (or (lichess-core-fmt-player (lichess-core-prop j 'players 'black))
-                    (lichess-core-fmt-player (alist-get 'black j))))
-         (speed (or (alist-get 'speed j) "")))
-    (format "%-28s vs %-28s   id:%s   %s" white black id speed)))
+(defmacro lichess-core-with-buf (buf &rest body)
+  "Eval BODY inside BUF with read-only protections disabled.
+No-op if BUF is not live."
+  (declare (indent 1) (debug (form body)))
+  `(let ((--buf ,buf))
+     (when (buffer-live-p --buf)
+       (with-current-buffer --buf
+         (let ((inhibit-read-only t)
+               (buffer-read-only nil))
+           (save-excursion
+             (save-restriction
+               (widen)
+               ,@body)))))))
 
 (provide 'lichess-core)
 ;;; lichess-core.el ends here

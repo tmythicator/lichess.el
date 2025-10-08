@@ -16,13 +16,19 @@
 
 (require 'cl-lib)
 (require 'lichess-core)
+(require 'lichess-util)
 
 (defcustom lichess-tv-refresh-seconds 5
   "Auto-refresh period for best view."
   :type 'integer :group 'lichess)
 
+(defcustom lichess-tv-fetch-delay 0.12
+  "Delay between successive /api/game requests (seconds) to avoid HTTP 429."
+  :type 'number :group 'lichess)
+
 (defvar lichess-tv--buf "*Lichess TV*")
 (defvar lichess-tv-debug--buf "*(Debug) Lichess TV*")
+(defvar lichess-tv--next-at 0.0)
 
 ;;;###autoload
 (defun lichess-tv ()
@@ -33,93 +39,88 @@
       (lichess-core-mode)
       (local-set-key (kbd "g") #'lichess-tv)) ;; refresh
     (lichess-core-with-buf buf
-                           (lambda ()
-                             (erase-buffer)
-                             (insert "Fetching Lichess TV channels…\n")))
+      (erase-buffer)
+      (insert "Fetching Lichess TV channels…\n"))
     (pop-to-buffer buf))
   (lichess-core-fetch-json "https://lichess.org/api/tv/channels"
                            #'lichess-tv--handle-channels))
+
+(defun lichess-tv--update-line (pos text &optional id)
+  "Replace line at POS with TEXT. If POS is stale, find the line by game ID."
+  (let ((buf (get-buffer lichess-tv--buf)))
+    (when (buffer-live-p buf)
+      (with-current-buffer buf
+        (let ((inhibit-read-only t))
+          (save-excursion
+            ;; 1) try marker position
+            (let* ((p (and (markerp pos) (marker-buffer pos)
+                           (marker-position pos)))
+                   bol cur-id)
+              (when p
+                (goto-char p)
+                (setq bol (line-beginning-position)
+                      cur-id (get-text-property bol 'lichess-game-id)))
+              ;; 2) fallback: locate by ID across the buffer
+              (when (and id (not (equal id cur-id)))
+                (let ((hit (text-property-any (point-min) (point-max)
+                                              'lichess-game-id id)))
+                  (when hit
+                    (goto-char hit)
+                    (setq bol (line-beginning-position)
+                          cur-id id))))
+              ;; 3) update if we found a line
+              (when bol
+                (let ((eol (min (point-max) (1+ (line-end-position)))))
+                  (delete-region bol eol)
+                  (goto-char bol)
+                  (lichess-util--insert-propertized-line text id))))))))))
+
+
+(defun lichess-tv--fetch-game (id chan-name marker)
+  "Throttled fetch of /api/game/{id} and update the line at MARKER."
+  (let* ((now (float-time))
+         (at  (max now lichess-tv--next-at)))
+    (setq lichess-tv--next-at (+ at lichess-tv-fetch-delay))
+    (run-at-time (- at now) nil
+                 (lambda ()
+                   (let ((url (format "https://lichess.org/api/game/%s" id)))
+                     (lichess-core-fetch-json
+                      url
+                      (lambda (res)
+                        (let ((status (car res))
+                              (data   (cdr res)))
+                          ;;                          (message "fetched: %s, time: %s" id at)
+                          (if (= status 200)
+                              (let ((vs (lichess-util--game->vs data)))
+                                (lichess-tv--update-line
+                                 marker
+                                 (format "%-12s  %-64s  id:%s" chan-name vs id)
+                                 id))
+                            (lichess-tv--update-line
+                             marker
+                             (format "%-12s  id:%s (HTTP %s)" chan-name id status)
+                             id))))))))))
+
+(defun lichess-tv--insert-channel (pair)
+  "Insert a placeholder for PAIR = (CHAN . GAME), then fetch full game and update."
+  (pcase-let* ((`(,chan . ,g) pair)
+               (chan-name (symbol-name chan))
+               (id        (or (lichess-util--aget g 'gameId)
+                              (lichess-util--aget g 'id))))
+    (lichess-core-with-buf (get-buffer lichess-tv--buf)
+      (goto-char (point-max))
+      (let* ((text   (format "%-12s  %s  id:%s" chan-name "loading…" id))
+             (marker (lichess-util--insert-propertized-line text id)))
+        (when id
+          (lichess-tv--fetch-game id chan-name marker))))))
 
 (defun lichess-tv--handle-channels (res)
   "Process /api/tv/channels response."
   (if (/= (car res) 200)
       (lichess-core-with-buf (get-buffer lichess-tv--buf)
-                             (lambda ()
-                               (erase-buffer)
-                               (insert (format "HTTP %s from /api/tv/channels\n" (car res)))))
+        (erase-buffer)
+        (insert (format "HTTP %s from /api/tv/channels\n" (car res))))
     (mapc #'lichess-tv--insert-channel (cdr res))))
-
-(defun lichess-tv--insert-channel (pair)
-  "Insert one channel entry PAIR = (CHAN . GAME)."
-  (pcase-let* ((`(,chan . ,g) pair)
-               (chan-name (symbol-name chan))
-               (id        (or (alist-get 'gameId g)
-                              (alist-get 'id g)))
-               (user      (alist-get 'user g))
-               (name      (alist-get 'name user))
-               (title     (alist-get 'title user))
-               (rating    (alist-get 'rating g))
-               (color     (alist-get 'color g))
-               (inline    (lichess-tv--fmt-inline name title rating)))
-    (lichess-core-with-buf (get-buffer lichess-tv--buf)
-                           (lambda ()
-                             (goto-char (point-max))
-                             (let* ((pos (point))
-                                    (marker (copy-marker pos t)))
-                               (insert (format "%-12s  %-28s (%s)  id:%s\n"
-                                               chan-name inline color id))
-                               (add-text-properties (line-beginning-position)
-                                                    (line-end-position)
-                                                    (list 'lichess-game-id id
-                                                          'mouse-face 'highlight
-                                                          'help-echo "RET: open in browser"))
-                               (when id
-                                 (lichess-tv--fetch-game id chan-name marker)))))))
-
-(defun lichess-tv--fmt-inline (name title rating)
-  "Format short player NAME with TITLE and RATING."
-  (if name
-      (string-trim
-       (format "%s%s%s"
-               (or title "")
-               (if title " " "")
-               (if rating
-                   (format "%s (%s)" name rating)
-                 name)))
-    "Anonymous"))
-
-(defun lichess-tv--fetch-game (id chan-name marker)
-  "Fetch full /api/game/{id} and update line."
-  (let ((url (format "https://lichess.org/api/game/%s" id)))
-    (lichess-core-fetch-json
-     url
-     (lambda (res)
-       (let ((line (if (= (car res) 200)
-                       (lichess-core-game-line (cdr res))
-                     (format "id:%s (HTTP %s)" id (car res)))))
-         (lichess-tv--update-line marker
-                                  (format "%-12s  %s" chan-name line)
-                                  id))))))
-
-(defun lichess-tv--update-line (pos text &optional id)
-  "Replace line at POS (marker or number) with TEXT; attach game ID props."
-  (let ((buf (get-buffer lichess-tv--buf)))
-    (when (buffer-live-p buf)
-      (with-current-buffer buf
-        (let ((inhibit-read-only t)
-              (buffer-read-only nil))
-          (save-excursion
-            (goto-char (if (markerp pos) (marker-position pos) pos))
-            (let ((current-id (get-text-property (line-beginning-position) 'lichess-game-id)))
-              (when (or (null id) (equal id current-id))
-                (delete-region (line-beginning-position) (line-end-position))
-                (goto-char (line-beginning-position))
-                (insert text)
-                (when id
-                  (add-text-properties (line-beginning-position) (line-end-position)
-                                       (list 'lichess-game-id id
-                                             'mouse-face 'highlight
-                                             'help-echo "RET: open in browser")))))))))))
 
 ;;;###autoload
 (defun lichess-tv-debug (&optional channel)
@@ -134,27 +135,25 @@
          tail)
     (with-current-buffer buf (lichess-core-mode))
     (lichess-core-with-buf buf
-                           (lambda ()
-                             (erase-buffer)
-                             (insert "Fetching /api/tv/channels …\n\n")
-                             (setq tail (copy-marker (point-max) t))))
+      (erase-buffer)
+      (insert "Fetching /api/tv/channels …\n\n")
+      (setq tail (copy-marker (point-max) t)))
     (pop-to-buffer buf)
     (cl-labels
         ((append-tail (&rest xs)
            (lichess-core-with-buf buf
-                                  (lambda ()
-                                    (goto-char (marker-position tail))
-                                    (while xs
-                                      (let ((x (pop xs)))
-                                        (cond
-                                         ((eq x :nl) (insert "\n"))
-                                         ((eq x :hr) (insert (make-string 70 ?─) "\n"))
-                                         ((eq x :ts) (insert (format-time-string "[%H:%M:%S] ")))
-                                         ((eq x :pp) (pp (pop xs) (current-buffer)))
-                                         ((stringp x) (insert x))
-                                         (t (insert (format "%s" x))))))
-                                    (insert "\n")
-                                    (setq tail (copy-marker (point) t))))))
+             (goto-char (marker-position tail))
+             (while xs
+               (let ((x (pop xs)))
+                 (cond
+                  ((eq x :nl) (insert "\n"))
+                  ((eq x :hr) (insert (make-string 70 ?─) "\n"))
+                  ((eq x :ts) (insert (format-time-string "[%H:%M:%S] ")))
+                  ((eq x :pp) (pp (pop xs) (current-buffer)))
+                  ((stringp x) (insert x))
+                  (t (insert (format "%s" x))))))
+             (insert "\n")
+             (setq tail (copy-marker (point) t)))))
       ;; Get channels
       (lichess-core-fetch-json
        "https://lichess.org/api/tv/channels"
