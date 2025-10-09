@@ -12,8 +12,7 @@
 ;;; Code:
 
 (require 'url)
-(require 'json)
-(require 'cl-lib)
+(require 'lichess-http)
 
 (defgroup lichess nil
   "Play and interact with Lichess."
@@ -40,25 +39,6 @@
     (if id
         (browse-url (format "https://lichess.org/%s" id))
       (message "No game id on this line."))))
-
-;;;; HTTP/JSON
-(defun lichess-core-fetch-json (url cb &optional headers)
-  "GET URL with HEADERS, parse JSON; call CB with (STATUS . JSON-or-nil)."
-  (let ((url-request-method "GET")
-        (url-request-extra-headers (or headers '(("Accept" . "application/json")))))
-    (url-retrieve
-     url
-     (lambda (_)
-       (let* ((status (or (bound-and-true-p url-http-response-status) 0))
-              (_ (goto-char (or url-http-end-of-headers (point-min))))
-              (body (buffer-substring-no-properties (point) (point-max)))
-              (json (condition-case _
-                        (let ((json-object-type 'alist)
-                              (json-array-type 'list))
-                          (json-read-from-string body))
-                      (error nil))))
-         (funcall cb (cons status json))))
-     nil t)))
 
 ;;;; Buffers
 (defmacro lichess-core-with-buf (buf &rest body)

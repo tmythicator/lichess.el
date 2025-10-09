@@ -42,8 +42,8 @@
       (erase-buffer)
       (insert "Fetching Lichess TV channels…\n"))
     (pop-to-buffer buf))
-  (lichess-core-fetch-json "https://lichess.org/api/tv/channels"
-                           #'lichess-tv--handle-channels))
+  (lichess-http-json "/api/tv/channels"
+                     #'lichess-tv--handle-channels))
 
 (defun lichess-tv--update-line (pos text &optional id)
   "Replace line at POS with TEXT. If POS is stale, find the line by game ID."
@@ -83,8 +83,8 @@
     (setq lichess-tv--next-at (+ at lichess-tv-fetch-delay))
     (run-at-time (- at now) nil
                  (lambda ()
-                   (let ((url (format "https://lichess.org/api/game/%s" id)))
-                     (lichess-core-fetch-json
+                   (let ((url (format "/api/game/%s" id)))
+                     (lichess-http-json
                       url
                       (lambda (res)
                         (let ((status (car res))
@@ -155,8 +155,8 @@
              (insert "\n")
              (setq tail (copy-marker (point) t)))))
       ;; Get channels
-      (lichess-core-fetch-json
-       "https://lichess.org/api/tv/channels"
+      (lichess-http-json
+       "/api/tv/channels"
        (lambda (res)
          (let ((status (car res)) (data (cdr res)))
            (append-tail :hr :ts (format "HTTP %s /api/tv/channels" status)
@@ -170,8 +170,8 @@
                (append-tail (format "Channel %s -> game %s" channel (or gid "nil"))
                             :nl :hr :nl)
                (when gid
-                 (lichess-core-fetch-json
-                  (format "https://lichess.org/api/game/%s" gid)
+                 (lichess-http-json
+                  (format "/api/game/%s" gid)
                   (lambda (res2)
                     (append-tail :ts (format "HTTP %s /api/game/%s" (car res2) gid)
                                  :nl "--- RAW JSON ---" :nl :nl :pp (cdr res2) :hr :nl))))))))))))
