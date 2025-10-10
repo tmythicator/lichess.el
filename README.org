@@ -4,25 +4,31 @@
 
 A minimal Emacs client for the [[https://lichess.org/api][Lichess API]].
 
-* (WIP) Features
-- [X] Live Lichess TV channels list with =M-x lichess-tv=
-- [X] Inspect any TV channel with =M-x lichess-tv-debug=
-- [X] Interactive umbrella dispatcher =M-x lichess=
-- [ ] Watch a single game (planned =lichess-game.el=)
-- [ ] Live board stream (NDJSON)
-- [ ] Submit moves and play
-- [ ] Puzzles & tactics
-- [ ] Challenge API
-- [ ] MELPA packaging
-
+* Features
+- TV
+  - [X] Live Lichess TV channels list (=M-x lichess-tv=)
+  - [X] Inspect any TV channel (=M-x lichess-tv-debug=)
+- Core
+  - [X] Interactive umbrella dispatcher (=M-x lichess=)
+  - [X] Diagnostics: token + active games (=M-x lichess-diagnose=)
+- FEN / Board
+  - [X] Parse FEN → internal position struct
+  - [X] Render board to Org table (ASCII or Unicode)
+  - [X] Perspective: auto (from side-to-move) or forced (white/black)
+  - [X] En passant target parsing/validation
+- Roadmap
+  - [ ] Watch a single game (=lichess-game.el=)
+  - [ ] Live board stream (NDJSON)
+  - [ ] Submit moves and play
+  - [ ] Puzzles & tactics
+  - [ ] Challenge API
+  - [ ] MELPA packaging
 * Installation
 Clone and add to your load path:
 #+begin_src elisp
 (add-to-list 'load-path "~/path/to/emacs-lichess")
 (require 'lichess)
 #+end_src
-
-
 * Authentication
 Some commands require a personal API token:
 
@@ -37,7 +43,9 @@ Some commands require a personal API token:
 - =M-x lichess= -> main entrypoint, shows dispatcher to all subcommands
   - =TV: channels= -> opens Lichess TV
   - =Diagnose account= -> checks token & active games
-  - =TV: debug JSON= -> prints raw /api/tv/channels JSON
+  - =(Debug) TV: JSON channels= -> prints raw =/api/tv/channels= list as JSON
+  - =(Debug) NDJSON Stream= -> prints raw =/api/stream/game/{game}= information as NDJSON
+  - =(Debug) Render FEN position= -> renders chess position by FEN
 - =M-x lichess-tv= -> show TV channels list
   - [X] g refreshes list
   - [ ] RET opens game
