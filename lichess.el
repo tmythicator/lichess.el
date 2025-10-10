@@ -36,6 +36,7 @@
 (require 'lichess-core)
 (require 'lichess-tv)
 (require 'lichess-game)
+(require 'lichess-fen)
 
 (defcustom lichess-token nil
   "Personal Lichess API token."
@@ -57,7 +58,8 @@
   (let* ((choices '(("TV: channels"      . lichess-tv)
                     ("Diagnose account"  . lichess-diagnose)
                     ("(Debug) NDJSON Stream" . lichess-game-stream-debug)
-                    ("(Debug) TV: JSON channels" . lichess-tv-debug)))
+                    ("(Debug) TV: JSON channels" . lichess-tv-debug)
+                    ("(Debug) Render FEN position" . lichess-fen-show)))
          (pick (completing-read "Lichess: " (mapcar #'car choices) nil t)))
     (call-interactively (cdr (assoc pick choices)))))
 
