@@ -55,8 +55,9 @@
 (defun lichess ()
   "Dispatch Lichess commands."
   (interactive)
-  (let* ((choices '(("TV: channels"      . lichess-tv)
-                    ("Diagnose account"  . lichess-diagnose)
+  (let* ((choices '(("Lichess TV: Show channels"      . lichess-tv)
+                    ("Lichess: Watch game"      . lichess-game-watch)
+                    ("(Debug) Diagnose account"  . lichess-diagnose)
                     ("(Debug) NDJSON Stream" . lichess-game-stream-debug)
                     ("(Debug) TV: JSON channels" . lichess-tv-debug)
                     ("(Debug) Render FEN position" . lichess-fen-show)))

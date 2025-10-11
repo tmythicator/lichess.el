@@ -99,13 +99,14 @@ Return (row . col) or nil. Valid ranks are only 3 and 6."
 (defun lichess-fen-render-org-table (pos &optional unicode perspective)
   "Return an Org-mode table string for POS.
 If UNICODE non-nil, use Unicode chess glyphs.
-PERSPECTIVE is 'white or 'black. If nil, derive from (lichess-pos-stm pos)."
+PERSPECTIVE is 'white, 'black, or nil/'auto for side-to-move."
   (let* ((b     (lichess-pos-board pos))
          (fmt   (if unicode
                     #'lichess-fen--piece->unicode
                   (lambda (ch) (if (= ch ?.) "." (char-to-string ch)))))
-         (persp   (or perspective
-                      (if (eq (lichess-pos-stm pos) 'b) 'black 'white)))
+         (persp (if (or (null perspective) (eq perspective 'auto))
+                    (if (eq (lichess-pos-stm pos) 'b) 'black 'white)
+                  perspective))
          (flip  (eq persp 'black))
          (col-seq (if flip (number-sequence 7 0 -1) (number-sequence 0 7)))
          (row-seq (if flip (number-sequence 7 0 -1) (number-sequence 0 7)))
@@ -122,10 +123,12 @@ PERSPECTIVE is 'white or 'black. If nil, derive from (lichess-pos-stm pos)."
              (format "| %d | %s |" rank-label (string-join cells " | ")))))
       (string-join (append (list header sep) (mapcar #'row->line row-seq)) "\n"))))
 
-(defun lichess-fen-render-heading (pos style)
-  "Return heading string for the POS with chosen STYLE."
-  (format "FEN preview (%s), side-to-move: %s, castle: %s, ep: %s, hm: %d, fm: %d\n\n"
-          style (if (eq (lichess-pos-stm pos) 'w) "white" "black")
+(defun lichess-fen-render-heading (pos style perspective)
+  "Return heading string for the POS with chosen STYLE and PERSPECTIVE."
+  (format "FEN preview (%s), side-to-move: %s, perspective: %s, castle: %s, ep: %s, hm: %d, fm: %d\n\n"
+          style
+          (if (eq (lichess-pos-stm pos) 'w) "white" "black")
+          (symbol-name perspective)
           (lichess-pos-castle pos)
           (or (when-let ((ep (lichess-pos-ep pos)))
                 (format "%c%d" (+ ?a (cdr ep)) (- 8 (car ep))))

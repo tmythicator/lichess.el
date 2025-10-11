@@ -17,8 +17,8 @@ A minimal Emacs client for the [[https://lichess.org/api][Lichess API]].
   - [X] Perspective: auto (from side-to-move) or forced (white/black)
   - [X] En passant target parsing/validation
 - Roadmap
-  - [ ] Watch a single game (=lichess-game.el=)
-  - [ ] Live board stream (NDJSON)
+  - [X] Watch a single game (=lichess-game.el=)
+  - [X] Live board stream (NDJSON)
   - [ ] Submit moves and play
   - [ ] Puzzles & tactics
   - [ ] Challenge API
