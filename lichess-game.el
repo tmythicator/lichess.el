@@ -50,7 +50,7 @@
   (erase-buffer)
   (insert (lichess-fen-render-heading pos "org+unicode" lichess-game--perspective))
   (insert (lichess-fen-render-org-table pos t lichess-game--perspective))
-  (insert (format "\nPosition %d/%d" (1+ lichess-game--current-idx) (length lichess-game--fen-history)))
+  (insert (format "\n\nPosition %d/%d" (1+ lichess-game--current-idx) (length lichess-game--fen-history)))
   (when (fboundp 'org-table-align)
     (save-excursion
       (goto-char (point-min))
@@ -112,7 +112,7 @@
 
 ;;;###autoload
 (defun lichess-game-watch (id)
-  "Watch a L-ichess game by ID with a real-time board display and history."
+  "Watch a Lichess game by ID with a real-time board display and history."
   (interactive
    (list
     (read-string "Lichess game ID to watch: " nil nil lichess-game--debug-id)))
@@ -138,7 +138,6 @@
                  (when-let ((fen (lichess-game--extract-fen obj)))
                    (lichess-game--history-vpush fen)
                    (when lichess-game--live-mode
-                     ;; (message "id: %s, fen: %s" lichess-game--current-idx fen)
                      (setq lichess-game--current-idx (1- (length lichess-game--fen-history)))
                      (when-let ((pos (ignore-errors (lichess-chess-parse-fen fen))))
                        (lichess-game--render-pos pos)))))))

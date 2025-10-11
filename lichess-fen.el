@@ -112,16 +112,19 @@ PERSPECTIVE is 'white, 'black, or nil/'auto for side-to-move."
          (row-seq (if flip (number-sequence 7 0 -1) (number-sequence 0 7)))
          (files   (if flip '("h" "g" "f" "e" "d" "c" "b" "a")
                     '("a" "b" "c" "d" "e" "f" "g" "h")))
-         (header (format "|   | %s |" (mapconcat #'identity files " | ")))
-         (sep "|-+-+---+---+---+---+---+---+---+---|"))
+         (header (format "|%s| " (mapconcat #'identity files "|")))
+         (sep "|-+-+-+-+-+-+-+-+-"))
     (cl-labels
         ((row->line
            (r)
            (let* ((rowv (aref b r)) ;; current row vector
                   (cells (mapcar (lambda (c) (funcall fmt (aref rowv c))) col-seq))
                   (rank-label (- 8 r)))
-             (format "| %d | %s |" rank-label (string-join cells " | ")))))
-      (string-join (append (list header sep) (mapcar #'row->line row-seq)) "\n"))))
+             (format "|%s|%d"  (string-join cells "|") rank-label))))
+      (string-join (append
+                    (mapcar #'row->line row-seq)
+                    (list sep header))
+                   "\n"))))
 
 (defun lichess-fen-render-heading (pos style perspective)
   "Return heading string for the POS with chosen STYLE and PERSPECTIVE."
@@ -159,10 +162,10 @@ PERSPECTIVE: 'white, 'black, or 'from-stm (default 'from-stm)."
                   persp-raw)))
     (with-current-buffer buf (lichess-core-mode))
     (lichess-core-with-buf buf
-      (erase-buffer)
-      (insert (lichess-fen-render-heading pos style))
-      (insert (lichess-fen-render-org-table pos unicode persp))
-      (insert "\n"))
+                           (erase-buffer)
+                           (insert (lichess-fen-render-heading pos style persp))
+                           (insert (lichess-fen-render-org-table pos unicode persp))
+                           (insert "\n"))
     (pop-to-buffer buf)
     (when (and (require 'org-table nil t))
       (with-current-buffer buf
