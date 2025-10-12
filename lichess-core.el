@@ -21,9 +21,7 @@
 (defvar lichess-core-mode-map
   (let ((m (make-sparse-keymap)))
     (set-keymap-parent m special-mode-map)
-    (define-key m (kbd "RET")       #'lichess-core-open-at-point)
-    (define-key m (kbd "<return>")  #'lichess-core-open-at-point)
-    (define-key m (kbd "C-m")       #'lichess-core-open-at-point)
+    ;; TODO: find out, what would be the core-keys for lichess.el navigation
     m)
   "Keymap for `lichess-core-mode'.")
 
@@ -31,14 +29,6 @@
   "Base mode for Lichess buffers."
   (read-only-mode 1)
   (setq truncate-lines t))
-
-(defun lichess-core-open-at-point ()
-  "Open game at point by text-property 'lichess-game-id'."
-  (interactive)
-  (let* ((id (get-text-property (point) 'lichess-game-id)))
-    (if id
-        (browse-url (format "https://lichess.org/%s" id))
-      (message "No game id on this line."))))
 
 ;;;; Buffers
 (defmacro lichess-core-with-buf (buf &rest body)

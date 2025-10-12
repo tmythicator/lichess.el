@@ -14,13 +14,8 @@
 ;;
 ;;; Code:
 
-(require 'cl-lib)
 (require 'lichess-core)
 (require 'lichess-util)
-
-(defcustom lichess-tv-refresh-seconds 5
-  "Auto-refresh period for best view."
-  :type 'integer :group 'lichess)
 
 (defcustom lichess-tv-fetch-delay 0.12
   "Delay between successive /api/game requests (seconds) to avoid HTTP 429."
@@ -30,20 +25,41 @@
 (defvar lichess-tv-debug--buf "*(Debug) Lichess TV*")
 (defvar lichess-tv--next-at 0.0)
 
+(defvar lichess-tv-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "g")        #'lichess-tv)
+    (define-key map (kbd "RET")      #'lichess-tv-watch-game-at-point)
+    (define-key map (kbd "<return>") #'lichess-tv-watch-game-at-point)
+    (define-key map (kbd "C-m")      #'lichess-tv-watch-game-at-point)
+    map)
+  "Keymap for `lichess-tv-mode'.")
+
+(define-derived-mode lichess-tv-mode lichess-core-mode "Lichess-TV"
+  "Major mode for the Lichess TV channel list."
+  ;; All buffer setup is now centralized here.
+  (setq truncate-lines t))
+
 ;;;###autoload
 (defun lichess-tv ()
-  "Show current Lichess TV channels; lines are clickable (RET)."
+  "Show current Lichess TV channels; lines ar e clickable (RET)."
   (interactive)
   (let ((buf (get-buffer-create lichess-tv--buf)))
     (with-current-buffer buf
-      (lichess-core-mode)
-      (local-set-key (kbd "g") #'lichess-tv)) ;; refresh
+      (lichess-tv-mode))
     (lichess-core-with-buf buf
       (erase-buffer)
       (insert "Fetching Lichess TV channels…\n"))
     (pop-to-buffer buf))
   (lichess-http-json "/api/tv/channels"
                      #'lichess-tv--handle-channels))
+
+(defun lichess-tv-watch-game-at-point ()
+  "Watch the Lichess game on the current line in a new buffer."
+  (interactive)
+  (let ((id (get-text-property (point) 'lichess-game-id)))
+    (if id
+        (lichess-game-watch id)
+      (message "No game ID found on this line."))))
 
 (defun lichess-tv--update-line (pos text &optional id)
   "Replace line at POS with TEXT. If POS is stale, find the line by game ID."
@@ -133,7 +149,7 @@
            (if (string-empty-p ans) nil ans))))
   (let* ((buf  (get-buffer-create lichess-tv-debug--buf))
          tail)
-    (with-current-buffer buf (lichess-core-mode))
+    (with-current-buffer buf (lichess-tv-mode))
     (lichess-core-with-buf buf
       (erase-buffer)
       (insert "Fetching /api/tv/channels …\n\n")
