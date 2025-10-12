@@ -6,6 +6,7 @@ A minimal Emacs client for the [[https://lichess.org/api][Lichess API]].
 
 * Showcase
 Here is a quick demonstration of browsing Lichess TV and watching a live game:
+
 [[file:demo/lichess-tv.gif]]
 
 * Features
