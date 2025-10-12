@@ -4,29 +4,38 @@
 
 A minimal Emacs client for the [[https://lichess.org/api][Lichess API]].
 
+* Showcase
+Here is a quick demonstration of browsing Lichess TV and watching a live game:
+[[file:demo/lichess-tv.gif]]
+
 * Features
 - TV
   - [X] Live Lichess TV channels list (=M-x lichess-tv=)
+  - [X] Select a game with =RET= to watch it live inside Emacs.
   - [X] Inspect any TV channel (=M-x lichess-tv-debug=)
+- Live Game Watcher
+  - [X] Stream any Lichess game by its ID (M-x lichess-game-watch).
+  - [X] Real-time board updates via the NDJSON stream.
+  - [X] Full game history navigation with =p= (previous) and =n= (next).
+  - [X] Switch board perspective with =v= (auto, white, black).
 - Core
   - [X] Interactive umbrella dispatcher (=M-x lichess=)
   - [X] Diagnostics: token + active games (=M-x lichess-diagnose=)
 - FEN / Board
-  - [X] Parse FEN → internal position struct
+  - [X] Parse FEN -> internal position struct
   - [X] Render board to Org table (ASCII or Unicode)
-  - [X] Perspective: auto (from side-to-move) or forced (white/black)
-  - [X] En passant target parsing/validation
+  - [X] Header displays side-to-move, castling rights, en passant target, and perspective.
 - Roadmap
   - [X] Watch a single game (=lichess-game.el=)
   - [X] Live board stream (NDJSON)
   - [ ] Submit moves and play
+  - [ ] MELPA packaging
   - [ ] Puzzles & tactics
   - [ ] Challenge API
-  - [ ] MELPA packaging
 * Installation
 Clone and add to your load path:
 #+begin_src elisp
-(add-to-list 'load-path "~/path/to/emacs-lichess")
+(add-to-list 'load-path "~/path/to/your/lichess")
 (require 'lichess)
 #+end_src
 * Authentication
@@ -47,8 +56,8 @@ Some commands require a personal API token:
   - =(Debug) NDJSON Stream= -> prints raw =/api/stream/game/{game}= information as NDJSON
   - =(Debug) Render FEN position= -> renders chess position by FEN
 - =M-x lichess-tv= -> show TV channels list
-  - [X] g refreshes list
-  - [ ] RET opens game
+  - =g= refreshes list
+  - =RET= opens game on the current line
 - =M-x lichess-tv-debug= ->  dump raw JSON
 - =M-x lichess-diagnose= -> check auth and active games
 
