@@ -8,6 +8,7 @@
 
 ;;; Code:
 
+(require 'seq)
 (require 'cl-lib)
 (require 'subr-x)
 (require 'lichess-core)
@@ -96,35 +97,79 @@ Return (row . col) or nil. Valid ranks are only 3 and 6."
     (?k "♚") (?q "♛") (?r "♜") (?b "♝") (?n "♞") (?p "♟")
     (_ ".")))
 
-(defun lichess-fen-render-org-table (pos &optional unicode perspective)
+(defun lichess-fen-render-org-table (pos &optional unicode perspective eval-str)
   "Return an Org-mode table string for POS.
-If UNICODE non-nil, use Unicode chess glyphs.
-PERSPECTIVE is 'white, 'black, or nil/'auto for side-to-move."
-  (let* ((b     (lichess-pos-board pos))
-         (fmt   (if unicode
-                    #'lichess-fen--piece->unicode
-                  (lambda (ch) (if (= ch ?.) "." (char-to-string ch)))))
-         (persp (if (or (null perspective) (eq perspective 'auto))
-                    (if (eq (lichess-pos-stm pos) 'b) 'black 'white)
-                  perspective))
-         (flip  (eq persp 'black))
-         (col-seq (if flip (number-sequence 7 0 -1) (number-sequence 0 7)))
-         (row-seq (if flip (number-sequence 7 0 -1) (number-sequence 0 7)))
-         (files   (if flip '("h" "g" "f" "e" "d" "c" "b" "a")
-                    '("a" "b" "c" "d" "e" "f" "g" "h")))
-         (header (format "|%s| " (mapconcat #'identity files "|")))
-         (sep "|-+-+-+-+-+-+-+-+-"))
-    (cl-labels
-        ((row->line
-           (r)
-           (let* ((rowv (aref b r)) ;; current row vector
-                  (cells (mapcar (lambda (c) (funcall fmt (aref rowv c))) col-seq))
-                  (rank-label (- 8 r)))
-             (format "|%s|%d"  (string-join cells "|") rank-label))))
-      (string-join (append
-                    (mapcar #'row->line row-seq)
-                    (list sep header))
-                   "\n"))))
+If EVAL-STR is non-nil, render a vertical evaluation bar next to the board."
+  (let* ((board-lines
+          ;; First, generate the board as a list of strings
+          (let* ((b     (lichess-pos-board pos))
+                 (fmt   (if unicode #'lichess-fen--piece->unicode
+                          (lambda (ch) (if (= ch ?.) "." (char-to-string ch)))))
+                 (persp (if (or (null perspective) (eq perspective 'auto))
+                            (if (eq (lichess-pos-stm pos) 'b) 'black 'white)
+                          perspective))
+                 (flip  (eq persp 'black))
+                 (col-seq (if flip (number-sequence 7 0 -1) (number-sequence 0 7)))
+                 (row-seq (if flip (number-sequence 7 0 -1) (number-sequence 0 7)))
+                 (files   (if flip '("h" "g" "f" "e" "d" "c" "b" "a")
+                            '("a" "b" "c" "d" "e" "f" "g" "h")))
+                 (header (format "|%s| " (mapconcat #'identity files "|")))
+                 (sep    "|-+-+-+-+-+-+-+-+-|"))
+            (cl-labels
+                ((row->line (r)
+                   (let* ((rowv (aref b r))
+                          (cells (mapcar (lambda (c) (funcall fmt (aref rowv c))) col-seq))
+                          (rank-label (- 8 r)))
+                     (format "|%s|%d|" (string-join cells "|") rank-label))))
+              (append
+               (mapcar #'row->line row-seq)
+               (list sep header)))))
+
+         (board-rows (seq-subseq board-lines 0 8))
+         (sep        (nth 8 board-lines))
+         (header     (nth 9 board-lines)))
+
+    (if (or (not eval-str) (string= eval-str "..."))
+        ;; If no eval-str, just return the board as a single string.
+        (string-join (append board-rows (list sep header)) "\n")
+
+      ;; If eval-str exists, stitch the bar to the right of the board.
+      (let* ((bar-lines (lichess-fen--render-evaluation-bar eval-str 8 perspective))
+             (bar-header (car bar-lines))
+             (bar-body   (cdr bar-lines)) ; The 8 characters of the bar
+             (stitched-rows '()))
+        ;; Combine each board row with its corresponding bar character.
+        (dotimes (i 8)
+          (push (format "%s  %s" (nth i board-rows) (nth i bar-body)) stitched-rows))
+
+        (string-join
+         (append (reverse stitched-rows)
+                 (list sep (format "%s  %s" header bar-header)))
+         "\n")))))
+
+
+(defun lichess-fen--render-evaluation-bar (eval-str height perspective)
+  "Return a list of strings representing a vertical evaluation bar."
+  (let* ((bar (make-vector height " "))
+         (advantage-char "█")
+         (disadvantage-char "░")
+         (max-eval 8.0)
+         (eval-num
+          (cond
+           ((null eval-str) 0.0)
+           ((string-prefix-p "M" eval-str)
+            (if (string-prefix-p "M-" eval-str) (- max-eval) max-eval))
+           (t (string-to-number eval-str))))
+         (relative-eval (if (eq perspective 'black) (- eval-num) eval-num)))
+    (setq relative-eval (max (- max-eval) (min max-eval relative-eval)))
+    (let* ((mid-point (/ (1- height) 2.0))
+           (fill-ratio (/ relative-eval max-eval))
+           (advantage-blocks (round (* (+ 1 fill-ratio) mid-point))))
+      (dotimes (i height)
+        (if (< i (- height advantage-blocks))
+            (aset bar i disadvantage-char)
+          (aset bar i advantage-char))))
+    (append '("Eval") (append bar nil))))
 
 (defun lichess-fen-render-heading (pos style perspective)
   "Return heading string for the POS with chosen STYLE and PERSPECTIVE."
@@ -162,10 +207,10 @@ PERSPECTIVE: 'white, 'black, or 'from-stm (default 'from-stm)."
                   persp-raw)))
     (with-current-buffer buf (lichess-core-mode))
     (lichess-core-with-buf buf
-                           (erase-buffer)
-                           (insert (lichess-fen-render-heading pos style persp))
-                           (insert (lichess-fen-render-org-table pos unicode persp))
-                           (insert "\n"))
+      (erase-buffer)
+      (insert (lichess-fen-render-heading pos style persp))
+      (insert (lichess-fen-render-org-table pos unicode persp))
+      (insert "\n"))
     (pop-to-buffer buf)
     (when (and (require 'org-table nil t))
       (with-current-buffer buf

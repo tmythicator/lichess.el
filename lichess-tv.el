@@ -105,7 +105,6 @@
                       (lambda (res)
                         (let ((status (car res))
                               (data   (cdr res)))
-                          ;;                          (message "fetched: %s, time: %s" id at)
                           (if (= status 200)
                               (let ((vs (lichess-util--game->vs data)))
                                 (lichess-tv--update-line
