@@ -48,12 +48,23 @@
   "Major mode for live Lichess game buffers."
   (setq truncate-lines t))
 
-(defun lichess-game--render-pos (pos &optional eval-str)
-  "Render the given POS struct in the current buffer with EVAL-STR."
+(defun lichess-game--render-pos (pos perspective &optional eval-str pos-info)
+  "Render the complete game view for POS in the current buffer.
+
+This function is the main renderer. It clears the buffer and draws
+the header, the board (with an optional evaluation bar), and any
+additional position information.
+
+ARGUMENTS:
+- POS: A `lichess-pos` struct representing the chess position.
+- PERSPECTIVE: A symbol, either 'white, 'black, or 'auto.
+- EVAL-STR: An optional evaluation string (e.g., \"+0.52\" or \"M3\").
+- POS-INFO: An optional string with context (e.g., \"\n\nPosition 5/42\")."
   (erase-buffer)
-  (insert (lichess-fen-render-heading pos "org+unicode" lichess-game--perspective))
-  (insert (lichess-fen-render-org-table pos t lichess-game--perspective eval-str))
-  (insert (format "\n\nPosition %d/%d" (1+ lichess-game--current-idx) (length lichess-game--fen-history)))
+  (insert (lichess-fen-render-heading pos "org+unicode" perspective))
+  (insert (lichess-fen-render-org-table pos t perspective eval-str))
+  (when pos-info
+    (insert (format "\n\n%s" pos-info)))
   (when (fboundp 'org-table-align)
     (save-excursion
       (goto-char (point-min))
@@ -68,13 +79,14 @@
     (setq lichess-game--current-idx (1- lichess-game--current-idx))
     (let* ((fen (aref lichess-game--fen-history lichess-game--current-idx))
            (eval-str (gethash lichess-game--current-idx lichess-game--eval-cache))
-           (pos (ignore-errors (lichess-chess-parse-fen fen))))
+           (pos (ignore-errors (lichess-chess-parse-fen fen)))
+           (pos-info (format "Position %d/%d"
+                             (1+ lichess-game--current-idx)
+                             (length lichess-game--fen-history))))
       (when pos
         (lichess-core-with-buf (current-buffer)
-          (lichess-game--render-pos pos eval-str))))
-    (message "Position %d/%d"
-             (1+ lichess-game--current-idx)
-             (length lichess-game--fen-history))))
+          (message pos-info)
+          (lichess-game--render-pos pos lichess-game--perspective eval-str pos-info))))))
 
 (defun lichess-game-history-next ()
   "Move to the next position in game history."
@@ -83,16 +95,16 @@
     (setq lichess-game--current-idx (1+ lichess-game--current-idx))
     (let* ((fen (aref lichess-game--fen-history lichess-game--current-idx))
            (eval-str (gethash lichess-game--current-idx lichess-game--eval-cache))
-           (pos (ignore-errors (lichess-chess-parse-fen fen))))
+           (pos (ignore-errors (lichess-chess-parse-fen fen)))
+           (pos-info (format "Position %d/%d"
+                             (1+ lichess-game--current-idx)
+                             (length lichess-game--fen-history))))
       (when pos
         (lichess-core-with-buf (current-buffer)
-          (lichess-game--render-pos pos eval-str))))
+          (message pos-info)
+          (lichess-game--render-pos pos lichess-game--perspective eval-str pos-info))))
     (when (= lichess-game--current-idx (1- (length lichess-game--fen-history)))
-      (setq lichess-game--live-mode t))
-    (message "Position %d/%d %s"
-             (1+ lichess-game--current-idx)
-             (length lichess-game--fen-history)
-             (if lichess-game--live-mode "(Live)" ""))))
+      (setq lichess-game--live-mode t))))
 
 (defun lichess-game--extract-fen (obj)
   "Extract FEN from an NDJSON event (from obj.fen or obj.state.fen)."
@@ -147,7 +159,7 @@
                    (when lichess-game--live-mode
                      (setq lichess-game--current-idx (1- (length lichess-game--fen-history)))
                      (when-let ((pos (ignore-errors (lichess-chess-parse-fen fen))))
-                       (lichess-game--render-pos pos)))))))
+                       (lichess-game--render-pos pos lichess-game--perspective)))))))
            :on-close
            (lambda (_proc msg)
              (when (buffer-live-p buf)
@@ -170,7 +182,10 @@
         (when (or (null cached-eval)
                   (string= cached-eval "..."))
           (let* ((fen (aref lichess-game--fen-history i))
-                 (pos (ignore-errors (lichess-chess-parse-fen fen))))
+                 (pos (ignore-errors (lichess-chess-parse-fen fen)))
+                 (pos-info (format "Position %d/%d"
+                                   (1+ lichess-game--current-idx)
+                                   (length lichess-game--fen-history))))
             (when pos
               (puthash i "..." lichess-game--eval-cache)
               (lichess-util-fetch-evaluation
@@ -179,7 +194,10 @@
                  (lichess-core-with-buf game-buf
                    (puthash i eval-str lichess-game--eval-cache)
                    (when (= i lichess-game--current-idx)
-                     (lichess-game--render-pos pos eval-str))))))))))))
+                     (lichess-game--render-pos
+                      pos
+                      lichess-game--perspective
+                      eval-str pos-info))))))))))))
 
 ;;;###autoload
 (defun lichess-game-set-perspective ()
@@ -193,8 +211,11 @@
     (when lichess-game--current-idx
       (let* ((fen (aref lichess-game--fen-history lichess-game--current-idx))
              (pos (ignore-errors (lichess-chess-parse-fen fen)))
-             (eval-str (gethash lichess-game--current-idx lichess-game--eval-cache)))
-        (when pos (lichess-core-with-buf (current-buffer) (lichess-game--render-pos pos eval-str)))))))
+             (eval-str (gethash lichess-game--current-idx lichess-game--eval-cache))
+             (pos-info (format "Position %d/%d"
+                               (1+ lichess-game--current-idx)
+                               (length lichess-game--fen-history))))
+        (when pos (lichess-core-with-buf (current-buffer) (lichess-game--render-pos pos lichess-game--perspective eval-str pos-info)))))))
 
 ;;;###autoload
 (defun lichess-game-stream-debug (id)
