@@ -24,13 +24,15 @@
   "Safe get from OBJ (alist or hash-table). KEY may be symbol or string."
   (cond
    ((hash-table-p obj)
-    (or (gethash key obj)
-        (and (symbolp key) (gethash (symbol-name key) obj))
-        (and (stringp key) (gethash (intern key) obj))))
+    (let ((str (if (symbolp key) (symbol-name key) key))
+          (sym (if (stringp key) (intern key) key)))
+      (or (gethash sym obj)
+          (gethash str obj))))
    ((consp obj)
-    (or (alist-get key obj nil nil)
-        (and (symbolp key) (alist-get (symbol-name key) obj nil nil #'string=))
-        (and (stringp key) (alist-get (intern key) obj nil nil))))
+    (let ((str (if (symbolp key) (symbol-name key) key))
+          (sym (if (stringp key) (intern key) key)))
+      (or (alist-get sym obj nil nil #'eq)
+          (alist-get str obj nil nil #'string=))))
    (t nil)))
 
 (defun lichess-util--fmt-player (name title rating)

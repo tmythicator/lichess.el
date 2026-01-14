@@ -6,3 +6,7 @@
 *.elc
 # backups
 *.bak
+# secrets
+.secrets.el
+.env
+.token
