@@ -38,8 +38,7 @@ No-op if BUF is not live."
   `(let ((--buf ,buf))
      (when (buffer-live-p --buf)
        (with-current-buffer --buf
-         (let ((inhibit-read-only t)
-               (buffer-read-only nil))
+         (let ((inhibit-read-only t))
            (save-excursion
              (save-restriction
                (widen)

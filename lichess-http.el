@@ -75,7 +75,8 @@ CALLBACK receives (STATUS . VALUE), where VALUE is:
     (url-retrieve
      abs
      (lambda (_)
-       (let* ((status (or (bound-and-true-p url-http-response-status) 0)))
+       (let ((temp-buf (current-buffer))
+             (status (or (bound-and-true-p url-http-response-status) 0)))
          (goto-char (or url-http-end-of-headers (point-min)))
          (pcase parse
            ('raw
@@ -88,11 +89,11 @@ CALLBACK receives (STATUS . VALUE), where VALUE is:
                                    (json-array-type 'list))
                                (json-read-from-string body))
                            (error nil))))
-              (funcall callback (cons status json))))))
-       ;; url lib leaves the temp buffer current; kill it
-       (when (buffer-live-p (current-buffer))
-         (kill-buffer (current-buffer)))))
-    nil t))
+              (funcall callback (cons status json)))))
+         ;; Kill the temp buffer; we saved it above in case callback changed current buffer
+         (when (buffer-live-p temp-buf)
+           (kill-buffer temp-buf))))
+     nil t)))
 
 (defun lichess-http-json (url-or-endpoint callback &optional headers)
   "GET JSON from URL-OR-ENDPOINT and call CALLBACK with (STATUS . JSON-or-nil).
@@ -130,7 +131,8 @@ Arguments:
          (tail "")
          (proc (open-network-stream
                 (format "lichess-ndjson-%x" (random))
-                buf "lichess.org" 443 :type 'tls)))
+                buf "lichess.org" 443 :type 'tls :coding 'binary)))
+    (set-process-query-on-exit-flag proc nil)
     (with-current-buffer buf (special-mode))
     (set-process-filter
      proc
@@ -156,7 +158,8 @@ Arguments:
                  (condition-case _
                      (let* ((json-object-type 'alist)
                             (json-array-type 'list)
-                            (obj (json-read-from-string line)))
+                            (decoded (decode-coding-string line 'utf-8))
+                            (obj (json-read-from-string decoded)))
                        (when (functionp on-event) (funcall on-event obj)))
                    (error
                     ;; ignore malformed line; streams can be mid-chunk

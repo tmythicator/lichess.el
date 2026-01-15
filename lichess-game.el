@@ -34,6 +34,8 @@
   "Buffer-local flag. When non-nil, board updates automatically.")
 (defvar-local lichess-game--perspective 'white
   "The current board perspective. Can be 'white, 'black or 'auto.")
+(defvar-local lichess-game--id nil
+  "The ID of the game being watched/played in this buffer.")
 
 (defvar lichess-game-buffer-mode-map
   (let ((m (make-sparse-keymap)))
@@ -42,7 +44,9 @@
     (define-key m (kbd "n") #'lichess-game-history-next)
     (define-key m (kbd "v") #'lichess-game-set-perspective)
     (define-key m (kbd "l") #'lichess-game-evaluate-history)
+    (define-key m (kbd "m") #'lichess-game-move)
     m))
+(define-key lichess-game-buffer-mode-map (kbd "m") #'lichess-game-move)
 
 (define-derived-mode lichess-game-buffer-mode special-mode "Lichess-Game"
   "Major mode for live Lichess game buffers."
@@ -126,6 +130,7 @@ ARGUMENTS:
   (setq-local lichess-game--eval-cache (make-hash-table))
   (setq-local lichess-game--current-idx -1)
   (setq-local lichess-game--live-mode t)
+  (setq-local lichess-game--id nil)
   (setq-local lichess-game--perspective 'white))
 
 ;;;###autoload
@@ -148,6 +153,7 @@ ARGUMENTS:
                (unless (eq major-mode 'lichess-game-buffer-mode)
                  (lichess-game-buffer-mode))
                (lichess-game--reset-local-vars)
+               (setq lichess-game--id id)
                (erase-buffer)
                (insert (format "Connecting to game %s…\n" id))))
            :on-event
@@ -265,6 +271,25 @@ ARGUMENTS:
         (setq lichess-game--stream nil)
         (message "Lichess NDJSON stream stopped."))
     (message "No active Lichess NDJSON stream.")))
+
+;;;###autoload
+(defun lichess-game-move (move)
+  "Make a move in the current game.
+MOVE should be in UCI format (e.g., e2e4)."
+  (interactive "sMove (UCI, e.g. e2e4): ")
+  (unless lichess-game--id
+    (error "No game ID found for this buffer"))
+  (let ((game-id lichess-game--id))
+    (message "Sending move %s for game %s..." move game-id)
+    (lichess-http-request
+     (format "/api/board/game/%s/move/%s" game-id move)
+     (lambda (res)
+       (let ((status (car res))
+             (json (cdr res)))
+         (if (= status 200)
+             (message "Move %s sent successfully" move)
+           (message "Error sending move: %d %s" status (or (lichess-util--aget json 'error) "")))))
+     :method "POST")))
 
 (provide 'lichess-game)
 ;;; lichess-game.el ends here
