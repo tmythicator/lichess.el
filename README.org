@@ -48,7 +48,13 @@ Lichess.el is designed to work seamlessly in both *GUI* and *terminal* (=emacs -
   - [X] Live board stream (NDJSON)
   - [X] Submit moves and play
   - [X] Challenge API (against AI)
-  - [ ] MELPA packaging
+  - [X] MELPA packaging
+  - [X] GUI Rendering (SVG) vs TUI separation (lichess-board.el)
+  - [ ] UI Improvements
+    - [ ] Opponent and user rendering (names, ratings)
+    - [ ] Show remaining time (clock)
+    - [ ] On-screen keybindings info
+    - [ ] General status updates
   - [ ] Puzzles & tactics
 * Installation
 Clone and add to your load path:
@@ -142,6 +148,9 @@ nix develop
 
 ** CI/CD
 All pull requests are automatically checked for formatting, linting, and tests via GitHub Actions.
+
+* Credits
+Chess pieces by [[https://en.wikipedia.org/wiki/User:Cburnett][Colin M.L. Burnett]], licensed under [[http://creativecommons.org/licenses/by-sa/3.0/][CC BY-SA 3.0]].
 
 * License
 GPL-3.0-or-later See LICENSE for details.

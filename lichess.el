@@ -5,7 +5,7 @@
 ;; Author: Alexandr Timchenko <atimchenko92@gmail.com>
 ;; Maintainer: Alexandr Timchenko <atimchenko92@gmail.com>
 ;; URL: https://github.com/tmythicator/Lichess.el
-;; Version: 0.1
+;; Version: 0.2
 ;; Package-Requires: ((emacs "27.1"))
 ;; Keywords: games, chess, lichess, api
 ;;
