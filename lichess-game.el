@@ -94,7 +94,7 @@ ARGUMENTS:
   "Preview FEN rendering as it would appear in a live game.
 FEN is the position to render.
 EVAL-STR is an optional evaluation (e.g., \"+1.2\" or \"M2\").
-PERSPECTIVE is the board orientation ('white or 'black)."
+PERSPECTIVE is the board orientation (`white' or `black')."
   (interactive
    (list
     (read-string

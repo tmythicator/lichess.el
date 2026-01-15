@@ -259,7 +259,7 @@ STYLE is \"ascii\" or \"unicode\"."
             castle
             ep
             full
-            perspective
+            persp
             tag)))
 
 ;;;###autoload
