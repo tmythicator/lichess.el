@@ -32,10 +32,8 @@ jobs:
         run: make compile
 
       - name: Check Formatting
-        if: matrix.emacs_version == '29.4'
+        if: matrix.emacs_version == 'snapshot'
         run: make format-check
 
       - name: Lint
-        run: |
-          emacs -batch --eval "(require 'package)" --eval "(add-to-list 'package-archives '(\"melpa\" . \"https://melpa.org/packages/\") t)" --eval "(package-initialize)" --eval "(package-refresh-contents)" --eval "(package-install 'package-lint)"
-          emacs -batch -L . --eval "(require 'package-lint)" -f package-lint-batch-and-exit *.el
+        run: make lint
