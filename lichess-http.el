@@ -1,6 +1,6 @@
 ;;; lichess-http.el --- HTTP/JSON/NDJSON helpers for Lichess -*- lexical-binding: t; -*-
 ;;
-;; Copyright (C) 2025  Alexandr Timchenko
+;; Copyright (C) 2025-2026  Alexandr Timchenko
 ;; URL: https://github.com/tmythicator/Lichess.el
 ;; Version: 0.1
 ;; Package-Requires: ((emacs "27.1"))

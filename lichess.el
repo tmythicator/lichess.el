@@ -1,6 +1,6 @@
 ;;; lichess.el --- Lichess client -*- lexical-binding: t; -*-
 ;;
-;; Copyright (C) 2025  Alexandr Timchenko
+;; Copyright (C) 2025-2026  Alexandr Timchenko
 ;;
 ;; Author: Alexandr Timchenko <atimchenko92@gmail.com>
 ;; Maintainer: Alexandr Timchenko <atimchenko92@gmail.com>
