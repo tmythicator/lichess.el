@@ -2,6 +2,9 @@
 #+OPTIONS: toc:nil num:nil
 #+AUTHOR: Alexandr Timchenko
 
+[[https://github.com/tmythicator/Lichess.el/actions/workflows/test.yml/badge.svg]]
+[[https://img.shields.io/badge/Built_with-Nix-5277C3.svg?style=flat-square&logo=nixos&logoColor=white]]
+
 A minimal Emacs client for the [[https://lichess.org/api][Lichess API]].
 
 * Showcase
@@ -19,6 +22,11 @@ Here is a quick demonstration of browsing Lichess TV and watching a live game:
   - [X] Real-time board updates via the NDJSON stream.
   - [X] Full game history navigation with =p= (previous) and =n= (next).
   - [X] Switch board perspective with =v= (auto, white, black).
+- Playing
+  - [X] Challenge Lichess AI (=M-x lichess-ai-challenge=)
+  - [X] Make moves with =m= (UCI format)
+  - [X] Resign with =R=
+  - [X] Propose/Accept draw with =D=
 - Core
   - [X] Interactive umbrella dispatcher (=M-x lichess=)
   - [X] Diagnostics: token + active games (=M-x lichess-diagnose=)
@@ -29,10 +37,10 @@ Here is a quick demonstration of browsing Lichess TV and watching a live game:
 - Roadmap
   - [X] Watch a single game (=lichess-game.el=)
   - [X] Live board stream (NDJSON)
-  - [ ] Submit moves and play
+  - [X] Submit moves and play
+  - [X] Challenge API (against AI)
   - [ ] MELPA packaging
   - [ ] Puzzles & tactics
-  - [ ] Challenge API
 * Installation
 Clone and add to your load path:
 #+begin_src elisp
@@ -51,20 +59,44 @@ Some commands require a personal API token:
 
 * Usage
 - =M-x lichess= -> main entrypoint, shows dispatcher to all subcommands
-  - =TV: channels= -> opens Lichess TV
-  - =Diagnose account= -> checks token & active games
-  - =(Debug) TV: JSON channels= -> prints raw =/api/tv/channels= list as JSON
-  - =(Debug) NDJSON Stream= -> prints raw =/api/stream/game/{game}= information as NDJSON
-  - =(Debug) Render FEN position= -> renders chess position by FEN
 - =M-x lichess-tv= -> show TV channels list
   - =g= refreshes list
   - =RET= opens game on the current line
-- =M-x lichess-tv-debug= ->  dump raw JSON
-- =M-x lichess-diagnose= -> check auth and active games
+- =M-x lichess-ai-challenge= -> start a new game against Stockfish
+- =M-x lichess-game-watch= -> watch a specific game ID
 
-* Development and debugging
-- Diagnostics via =M-x lichess-diagnose= (Authorization check, active games)
-- Inspect any TV channel with =M-x lichess-tv-debug=
+* How to Play
+When in a game buffer (started via =M-x lichess-ai-challenge=):
+- =m= -> Prompt for a move (UCI format, e.g., =e2e4=)
+- =R= -> Resign the game (requires confirmation)
+- =D= -> Propose or accept a draw (requires confirmation)
+- =p= / =n= -> Navigate move history
+- =v= -> Cycle board perspective
+- =q= -> Quit stream and close game
+
+* Development
+This project uses a =Makefile= for common development tasks. If you use Nix, you can enter a reproducible environment with all dependencies pre-installed.
+
+** Set up environment (Nix users)
+You can use =direnv= to automatically load the dependencies when you enter the directory:
+#+begin_src bash
+direnv allow
+#+end_src
+
+Alternatively, enter the environment manually:
+#+begin_src bash
+nix develop
+#+end_src
+
+** Common Commands
+- *Format code*: =make format= (uses =elisp-autofmt=)
+- *Run tests*: =make test=
+- *Lint*: =make lint= (uses =package-lint=)
+- *Byte-compile*: =make compile=
+- *Clean*: =make clean= (removes =.elc= files)
+
+** CI/CD
+All pull requests are automatically checked for formatting, linting, and tests via GitHub Actions.
 
 * License
 GPL-3.0-or-later See LICENSE for details.
