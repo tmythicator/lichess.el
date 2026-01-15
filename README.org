@@ -12,6 +12,9 @@ Here is a quick demonstration of browsing Lichess TV and watching a live game:
 
 [[file:demo/lichess-tv.gif]]
 
+*Display Support*
+Lichess.el is designed to work seamlessly in both **GUI** and **terminal** (=emacs -nw=) versions of Emacs. Rendering uses a simple text-based board for the best compatibility.
+
 * Features
 - TV
   - [X] Live Lichess TV channels list (=M-x lichess-tv=)
@@ -32,7 +35,7 @@ Here is a quick demonstration of browsing Lichess TV and watching a live game:
   - [X] Diagnostics: token + active games (=M-x lichess-diagnose=)
 - FEN / Board
   - [X] Parse FEN -> internal position struct
-  - [X] Render board to Org table (ASCII or Unicode)
+  - [X] Render board (ASCII or Unicode)
   - [X] Header displays side-to-move, castling rights, en passant target, and perspective.
 - Roadmap
   - [X] Watch a single game (=lichess-game.el=)
@@ -97,6 +100,23 @@ nix develop
 
 ** CI/CD
 All pull requests are automatically checked for formatting, linting, and tests via GitHub Actions.
+
+* Font Configuration (GUI)
+If the chess board looks misaligned in the Emacs GUI, it is likely due to font metric differences for Unicode pieces. You can fix this by forcing a monospaced font:
+
+#+BEGIN_SRC elisp
+;; Option A: Standard configuration
+(setq lichess-token "YOUR_TOKEN")
+(setq lichess-core-chess-font "DejaVu Sans Mono")
+
+;; Option B: Full use-package configuration
+(use-package lichess
+  :custom
+  (lichess-token "YOUR_TOKEN")
+  (lichess-core-chess-font "DejaVu Sans Mono"))
+#+END_SRC
+
+You can also run =M-x lichess-core-setup-chess-font= interactively to test different fonts.
 
 * License
 GPL-3.0-or-later See LICENSE for details.
