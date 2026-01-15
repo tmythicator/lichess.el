@@ -10,3 +10,4 @@
 .secrets.el
 .env
 .token
+.direnv

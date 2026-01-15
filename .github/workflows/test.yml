@@ -26,9 +26,17 @@ jobs:
           version: ${{ matrix.emacs_version }}
 
       - name: Run tests
-        run: |
-          emacs -batch -L . -l test/lichess-test.el -f ert-run-tests-batch-and-exit
+        run: make test
 
       - name: Byte-compile
+        run: make compile
+
+      - name: Check Formatting
         run: |
-          emacs -batch -L . -f batch-byte-compile *.el
+          pip install elisp-autofmt
+          elisp-autofmt --check *.el
+
+      - name: Lint
+        run: |
+          emacs -batch --eval "(require 'package)" --eval "(add-to-list 'package-archives '(\"melpa\" . \"https://melpa.org/packages/\") t)" --eval "(package-initialize)" --eval "(package-refresh-contents)" --eval "(package-install 'package-lint)"
+          emacs -batch -L . --eval "(require 'package-lint)" -f package-lint-batch-and-exit *.el
