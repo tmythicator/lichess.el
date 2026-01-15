@@ -1,4 +1,4 @@
-;;; lichess-fen.el --- FEN parser and Org renderers for Lichess -*- lexical-binding: t; -*-
+;;; lichess-fen.el --- FEN parser and board renderers for Lichess -*- lexical-binding: t; -*-
 ;;
 ;; Copyright (C) 2025  Alexandr Timchenko
 ;; URL: https://github.com/tmythicator/Lichess.el
@@ -8,8 +8,8 @@
 
 ;;; Commentary:
 ;; - lichess-fen-parse: FEN -> position struct
-;; - lichess-fen-render-org-table: Org-mode table (ASCII or Unicode)
-;; - lichess-fen-show: interactive preview (Org / Org+Unicode)
+;; - lichess-fen-render-board: core board renderer
+;; - lichess-fen-show: interactive preview (ASCII / Unicode)
 
 ;;; Code:
 
@@ -106,7 +106,7 @@ Return (row . col) or nil. Valid ranks are only 3 and 6."
          (row (- 8 rank)))
       (cons row col))))
 
-;;; Org renderers
+;;; Board renderers
 (defun lichess-fen--piece->unicode (ch)
   "Map ASCII piece CH to Unicode figure (string)."
   (pcase ch
@@ -124,9 +124,9 @@ Return (row . col) or nil. Valid ranks are only 3 and 6."
     (?p "♟")
     (_ "·")))
 
-(defun lichess-fen-render-org-table
+(defun lichess-fen-render-board
     (pos &optional unicode perspective eval-str)
-  "Return an Org-mode table string for POS.
+  "Return a board string for POS.
 If EVAL-STR is non-nil, render a vertical evaluation bar next to the board."
   (let* ((board-lines
           ;; First, generate the board as a list of strings
@@ -235,33 +235,34 @@ If EVAL-STR is non-nil, render a vertical evaluation bar next to the board."
     (append '("Eval") (append bar nil))))
 
 (defun lichess-fen-render-heading (pos style perspective)
-  "Return heading string for the POS with chosen STYLE and PERSPECTIVE."
-  (format
-   "FEN preview (%s), side-to-move: %s, perspective: %s, castle: %s, ep: %s, hm: %d, fm: %d\n\n"
-   style
-   (if (eq (lichess-pos-stm pos) 'w)
-       "white"
-     "black")
-   (symbol-name perspective)
-   (lichess-pos-castle pos)
-   (or (when-let ((ep (lichess-pos-ep pos)))
-         (format "%c%d" (+ ?a (cdr ep)) (- 8 (car ep))))
-       "-")
-   (lichess-pos-halfmove pos)
-   (lichess-pos-fullmove pos)))
+  "Return a heading string for POS using STYLE and PERSPECTIVE.
+STYLE is \"ascii\" or \"unicode\"."
+  (let* ((persp
+          (if (or (null perspective) (eq perspective 'auto))
+              (if (eq (lichess-pos-stm pos) 'b)
+                  'black
+                'white)
+            perspective))
+         (stm (if (eq (lichess-pos-stm pos) 'w) "White" "Black"))
+         (castle (or (lichess-pos-castle pos) "-"))
+         (ep (or (lichess-pos-ep pos) "-"))
+         (full (lichess-pos-fullmove pos))
+         (tag (if (string= style "unicode") "Unicode" "ASCII")))
+    (format "* %s moves (Castle: %s, EP: %s, Full: %d) [%s, %s]\n"
+            stm castle ep full perspective tag)))
 
 ;;;###autoload
 (defun lichess-fen-show (fen style &optional perspective)
   "Render FEN in a preview buffer using STYLE and PERSPECTIVE.
-STYLE: \"org\" or \"org+unicode\".
+STYLE: \"ascii\" or \"unicode\".
 PERSPECTIVE: \`white', \`black', or \`from-stm' (default \`from-stm')."
 
   (interactive (list
                 (read-string "FEN: ")
-                (completing-read "Style: " '("org" "org+unicode")
+                (completing-read "Style: " '("ascii" "unicode")
                                  nil
                                  t
-                                 "org+unicode")
+                                 "unicode")
                 (let* ((choices '("from-stm" "white" "black")))
                   (completing-read "Perspective: " choices
                                    nil
@@ -269,7 +270,7 @@ PERSPECTIVE: \`white', \`black', or \`from-stm' (default \`from-stm')."
                                    "from-stm"))))
   (let* ((pos (lichess-fen-parse fen))
          (buf (get-buffer-create lichess-fen--buf))
-         (unicode (string= style "org+unicode"))
+         (unicode (string= style "unicode"))
          (persp-raw
           (cond
            ((symbolp perspective)
@@ -291,7 +292,7 @@ PERSPECTIVE: \`white', \`black', or \`from-stm' (default \`from-stm')."
      (erase-buffer)
      (insert (lichess-fen-render-heading pos style persp))
      (let ((start (point)))
-       (insert (lichess-fen-render-org-table pos unicode persp))
+       (insert (lichess-fen-render-board pos unicode persp))
        (add-text-properties start (point) '(face lichess-board-face)))
      (insert "\n"))
     (pop-to-buffer buf)))

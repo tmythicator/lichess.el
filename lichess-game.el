@@ -81,9 +81,9 @@ ARGUMENTS:
   (let ((inhibit-read-only t))
     (erase-buffer)
     (insert
-     (lichess-fen-render-heading pos "org+unicode" perspective))
+     (lichess-fen-render-heading pos "unicode" perspective))
     (let ((start (point)))
-      (insert (lichess-fen-render-org-table pos t perspective eval-str))
+      (insert (lichess-fen-render-board pos t perspective eval-str))
       (add-text-properties start (point) '(face lichess-board-face)))
     (when pos-info
       (insert (format "\n\n%s" pos-info)))

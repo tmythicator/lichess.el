@@ -120,11 +120,11 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
               (setq separator-columns line-separators))))
         (forward-line 1)))))
 
-(ert-deftest lichess-fen-render-org-table-test ()
-  "Test `lichess-fen-render-org-table` output and alignment."
+(ert-deftest lichess-fen-render-board-test ()
+  "Test `lichess-fen-render-board` output and alignment."
   (let* ((fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
          (pos (lichess-fen-parse fen))
-         (render (lichess-fen-render-org-table pos nil 'white))
+         (render (lichess-fen-render-board pos nil 'white))
          (expected (concat "|r|n|b|q|k|b|n|r|8\n"
                            "|p|p|p|p|p|p|p|p|7\n"
                            "|.|.|.|.|.|.|.|.|6\n"
@@ -142,11 +142,11 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
     (should (string-match "|\\.\\|\\.\\|\\.\\|\\.\\|\\.\\|\\.\\|\\.\\|\\.\\|5" render))
     (should (string-match "|R|N|B|Q|K|B|N|R|1" render))))
 
-(ert-deftest lichess-fen-render-org-table-unicode-test ()
-  "Test `lichess-fen-render-org-table` with Unicode pieces and alignment."
+(ert-deftest lichess-fen-render-board-unicode-test ()
+  "Test `lichess-fen-render-board` with Unicode pieces and alignment."
   (let* ((fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
          (pos (lichess-fen-parse fen))
-         (render (lichess-fen-render-org-table pos t 'white))
+         (render (lichess-fen-render-board pos t 'white))
          (expected (concat "|♜|♞|♝|♛|♚|♝|♞|♜|8\n"
                            "|♟|♟|♟|♟|♟|♟|♟|♟|7\n"
                            "|·|·|·|·|·|·|·|·|6\n"
@@ -164,11 +164,11 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
     (should (string-match "|·|·|·|·|·|·|·|·|5" render))
     (should (string-match "|♖|♘|♗|♕|♔|♗|♘|♖|1" render))))
 
-(ert-deftest lichess-fen-render-org-table-eval-test ()
-  "Test `lichess-fen-render-org-table` with evaluation bar."
+(ert-deftest lichess-fen-render-board-eval-test ()
+  "Test `lichess-fen-render-board` with evaluation bar."
   (let* ((fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
          (pos (lichess-fen-parse fen))
-         (render (lichess-fen-render-org-table pos nil 'white "0.0")))
+         (render (lichess-fen-render-board pos nil 'white "0.0")))
     ;; Check if "Eval" header and evaluation blocks are present
     (should (string-match "Eval" render))
     (should (string-match "░" render))
