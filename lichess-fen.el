@@ -108,18 +108,9 @@ EP-S is the en passant target string."
 (defun lichess-fen-refresh ()
   "Redraw the current FEN buffer using the latest style settings."
   (when (and lichess-fen--current-pos lichess-fen--current-persp)
-    (let ((inhibit-read-only t))
-      (font-lock-mode -1)
-      (erase-buffer)
-      (insert
-       (lichess-board-draw-heading
-        lichess-fen--current-pos lichess-fen--current-persp))
-      (insert
-       (lichess-board-draw
-        lichess-fen--current-pos lichess-fen--current-persp))
-      (insert "\n")
-      (goto-char (point-min))
-      (message "Lichess FEN shown (Style: %s)" lichess-board-style))))
+    (lichess-board-render-to-buffer
+     lichess-fen--current-pos lichess-fen--current-persp)
+    (message "Lichess FEN shown (Style: %s)" lichess-board-style)))
 
 ;;;###autoload
 (defun lichess-fen-show (fen &optional perspective)

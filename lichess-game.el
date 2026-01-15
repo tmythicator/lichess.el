@@ -77,16 +77,7 @@ ARGUMENTS:
 - PERSPECTIVE: A symbol, either \`white', \`black', or \`auto'.
 - EVAL-STR: An optional evaluation string (e.g., \"+0.52\" or \"M3\").
 - POS-INFO: An optional string with context (e.g., \"\n\nPosition 5/42\")."
-  (let ((inhibit-read-only t))
-    (erase-buffer)
-    (insert (lichess-board-draw-heading pos perspective))
-    (let ((start (point)))
-      (insert (lichess-board-draw pos perspective eval-str))
-      (add-text-properties
-       start (point) '(face lichess-core-board-face)))
-    (when pos-info
-      (insert (format "\n\n%s" pos-info)))
-    (goto-char (point-min))))
+  (lichess-board-render-to-buffer pos perspective eval-str pos-info))
 
 (defun lichess-game-history-previous ()
   "Move to the previous position in game history."

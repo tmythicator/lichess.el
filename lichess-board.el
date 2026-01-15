@@ -48,5 +48,54 @@ EVAL-STR: Optional evaluation string."
             s)))
     (lichess-board-tui-draw-heading pos tui-style perspective)))
 
+(defun lichess-board-insert-board (pos &optional perspective eval-str)
+  "Insert the board rendering POS into the current buffer at point.
+PERSPECTIVE: `white`, `black`, or `auto`.
+EVAL-STR: Optional evaluation string.
+Handles face application for TUI modes, avoiding interference with GUI SVGs."
+  (let* ((s lichess-board-style)
+         (gui-p
+          (and (string= s "gui")
+               (fboundp 'lichess-board-gui-available-p)
+               (lichess-board-gui-available-p)))
+         (board-str
+          (if gui-p
+              (lichess-board-gui-draw pos perspective)
+            (let ((tui-style
+                   (if (string= s "gui")
+                       "unicode"
+                     s)))
+              (lichess-board-tui-draw
+               pos tui-style perspective eval-str))))
+         (start (point)))
+    (insert board-str)
+    (unless gui-p
+      (add-text-properties
+       start (point) '(face lichess-core-board-face)))))
+
+(defun lichess-board-render-to-buffer
+    (pos &optional perspective eval-str info-str)
+  "Clear and render POS to the current buffer.
+Standardizes rendering for both game and FEN views.
+- POS: `lichess-pos` struct.
+- PERSPECTIVE: `white`, `black`, or `auto`.
+- EVAL-STR: Optional evaluation string.
+- INFO-STR: Optional extra text to append."
+  (let ((inhibit-read-only t))
+    (erase-buffer)
+    ;; 1. Heading
+    (insert (lichess-board-draw-heading pos perspective))
+
+    ;; 2. Board
+    (lichess-board-insert-board pos perspective eval-str)
+    (insert "\n")
+
+    ;; 3. Info/Footer
+    (when info-str
+      (insert "\n" info-str))
+
+    ;; 4. Reset cursor
+    (goto-char (point-min))))
+
 (provide 'lichess-board)
 ;;; lichess-board.el ends here
