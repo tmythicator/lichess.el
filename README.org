@@ -8,9 +8,13 @@
 A minimal Emacs client for the [[https://lichess.org/api][Lichess API]].
 
 * Showcase
+** Lichess TV
 Here is a quick demonstration of browsing Lichess TV and watching a live game:
-
 [[file:demo/lichess-tv.gif]]
+
+** Playing against AI
+Challenge Stockfish and play directly from Emacs:
+[[file:demo/lichess-ai.gif]]
 
 *Display Support*
 Lichess.el is designed to work seamlessly in both *GUI* and *terminal* (=emacs -nw=) versions of Emacs. Rendering uses a simple text-based board for the best compatibility.
