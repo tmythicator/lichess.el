@@ -26,7 +26,6 @@
   :group 'lichess)
 
 (defvar lichess-tv--buf "*Lichess TV*")
-(defvar lichess-tv-debug--buf "*(Debug) Lichess TV*")
 (defvar lichess-tv--next-at 0.0)
 
 (defvar lichess-tv-mode-map
@@ -155,105 +154,6 @@
        (erase-buffer)
        (insert (format "HTTP %s from /api/tv/channels\n" (car res))))
     (mapc #'lichess-tv--insert-channel (cdr res))))
-
-;;;###autoload
-(defun lichess-tv-debug (&optional channel)
-  "Dump raw JSON for /api/tv/channels and (optionally) /api/game/{id} of CHANNEL."
-  (interactive (list
-                (let* ((chs
-                        '("best"
-                          "blitz"
-                          "bullet"
-                          "rapid"
-                          "classical"
-                          "bot"
-                          "computer"
-                          "racingKings"
-                          "crazyhouse"
-                          "threeCheck"
-                          "kingOfTheHill"
-                          "atomic"
-                          "horde"
-                          "chess960"
-                          "ultraBullet"))
-                       (ans
-                        (completing-read "Channel (empty = all): " chs
-                                         nil nil "")))
-                  (if (string-empty-p ans)
-                      nil
-                    ans))))
-  (let* ((buf (get-buffer-create lichess-tv-debug--buf))
-         tail)
-    (with-current-buffer buf
-      (lichess-tv-mode))
-    (lichess-core-with-buf
-     buf
-     (erase-buffer)
-     (insert "Fetching /api/tv/channels …\n\n")
-     (setq tail (copy-marker (point-max) t)))
-    (pop-to-buffer buf)
-    (cl-labels
-     ((append-tail
-       (&rest xs)
-       (lichess-core-with-buf
-        buf (goto-char (marker-position tail))
-        (while xs
-          (let ((x (pop xs)))
-            (cond
-             ((eq x :nl)
-              (insert "\n"))
-             ((eq x :hr)
-              (insert (make-string 70 ?─) "\n"))
-             ((eq x :ts)
-              (insert (format-time-string "[%H:%M:%S] ")))
-             ((eq x :pp)
-              (pp (pop xs) (current-buffer)))
-             ((stringp x)
-              (insert x))
-             (t
-              (insert (format "%s" x))))))
-        (insert "\n") (setq tail (copy-marker (point) t)))))
-     ;; Get channels
-     (lichess-http-json
-      "/api/tv/channels"
-      (lambda (res)
-        (let ((status (car res))
-              (data (cdr res)))
-          (append-tail
-           :hr
-           :ts (format "HTTP %s /api/tv/channels" status)
-           :nl "--- RAW JSON ---"
-           :nl
-           :nl
-           :pp data
-           :hr
-           :nl)
-          ;; Get optional game of CHANNEL
-          (when (and (= status 200) channel)
-            (let* ((sym (intern (downcase channel)))
-                   (entry (alist-get sym data))
-                   (gid
-                    (and entry
-                         (or (alist-get 'gameId entry)
-                             (alist-get 'id entry)))))
-              (append-tail
-               (format "Channel %s -> game %s" channel (or gid "nil"))
-               :nl
-               :hr
-               :nl)
-              (when gid
-                (lichess-http-json
-                 (format "/api/game/%s" gid)
-                 (lambda (res2)
-                   (append-tail
-                    :ts
-                    (format "HTTP %s /api/game/%s" (car res2) gid)
-                    :nl "--- RAW JSON ---"
-                    :nl
-                    :nl
-                    :pp (cdr res2)
-                    :hr
-                    :nl))))))))))))
 
 (provide 'lichess-tv)
 ;;; lichess-tv.el ends here

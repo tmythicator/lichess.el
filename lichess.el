@@ -48,15 +48,6 @@
   :type 'string
   :group 'lichess)
 
-(defvar lichess-diagnose--buf "*Lichess Diagnose*")
-(defun lichess--dbgln (fmt &rest args)
-  "Append FMT line to `lichess-diagnose--buf' safely."
-  (let ((buf (get-buffer lichess-diagnose--buf)))
-    (when (buffer-live-p buf)
-      (lichess-core-with-buf
-       buf (goto-char (point-max))
-       (insert (apply #'format fmt args) "\n")))))
-
 ;;;###autoload
 (defun lichess ()
   "Dispatch Lichess commands."
@@ -65,50 +56,19 @@
           '(("Lichess TV: Show channels" . lichess-tv)
             ("Lichess: Watch game" . lichess-game-watch)
             ("Lichess: Play against AI" . lichess-ai-challenge)
-            ("(Debug) Diagnose account" . lichess-diagnose)
-            ("(Debug) NDJSON Stream" . lichess-game-stream-debug)
-            ("(Debug) TV: JSON channels" . lichess-tv-debug)
+            ("(Debug) Diagnose account" . lichess-debug-diagnose)
+            ("(Debug) NDJSON Stream" . lichess-debug-game-stream)
+            ("(Debug) TV: JSON channels" . lichess-debug-tv)
             ("(Debug) Render FEN position" . lichess-fen-show)))
          (pick
-          (completing-read "Lichess: " (mapcar #'car choices) nil t)))
-    (call-interactively (cdr (assoc pick choices)))))
-
-;;;###autoload
-(defun lichess-diagnose ()
-  "Check auth and show /account + /account/playing."
-  (interactive)
-  (let ((buf (get-buffer-create lichess-diagnose--buf)))
-    (with-current-buffer buf
-      (lichess-core-mode))
-    (lichess-core-with-buf
-     buf (erase-buffer) (insert "Lichess diagnostics\n\n"))
-    (pop-to-buffer buf))
-  (if (not
-       (and (stringp lichess-token) (> (length lichess-token) 10)))
-      (lichess--dbgln "Set lichess-token for authenticated calls.")
-    (lichess--dbgln "/api/account …")
-    (lichess-http-json
-     "/api/account"
-     (lambda (res)
-       (if (/= (car res) 200)
-           (lichess--dbgln "HTTP %s /account" (car res))
-         (let ((j (cdr res)))
-           (lichess--dbgln "Auth OK as %s" (alist-get 'username j))))
-       (lichess--dbgln "/api/account/playing …")
-       (lichess-http-json
-        "/api/account/playing"
-        (lambda (res2)
-          (pcase (car res2)
-            (200 (let* ((j (cdr res2))
-                        (games (alist-get 'nowPlaying j))
-                        (n (length games)))
-                   (lichess--dbgln (if (> n 0)
-                                       "%d ongoing game(s)"
-                                     "nowPlaying = []")
-                                   n)))
-            (_
-             (lichess--dbgln "HTTP %s /account/playing"
-                             (car res2))))))))))
+          (completing-read "Lichess: " (mapcar #'car choices) nil t))
+         (cmd (cdr (assoc pick choices))))
+    (when (memq
+           cmd
+           '(lichess-debug-diagnose
+             lichess-debug-game-stream lichess-debug-tv))
+      (require 'lichess-debug))
+    (call-interactively cmd)))
 
 (provide 'lichess)
 ;;; lichess.el ends here

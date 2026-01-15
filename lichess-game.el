@@ -28,9 +28,6 @@
 (defun lichess-game--stream-buffer-name (id)
   (format "*Lichess Game Stream: %s*" id))
 
-(defvar lichess-game--debug-id "t7HAF0vX"
-  "Default game ID used for debugging.")
-
 (defvar-local lichess-game--fen-history nil
   "Buffer-local vector of FEN strings for the current game.")
 (defvar-local lichess-game--eval-cache nil
@@ -88,30 +85,6 @@ ARGUMENTS:
     (when pos-info
       (insert (format "\n\n%s" pos-info)))
     (goto-char (point-min))))
-
-;;;###autoload
-(defun lichess-game-preview-fen (fen &optional eval-str perspective)
-  "Preview FEN rendering as it would appear in a live game.
-FEN is the position to render.
-EVAL-STR is an optional evaluation (e.g., \"+1.2\" or \"M2\").
-PERSPECTIVE is the board orientation (`white' or `black')."
-  (interactive
-   (list
-    (read-string
-     "FEN: "
-     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-    (read-string "Eval (optional): ")
-    (intern
-     (completing-read "Perspective: " '("white" "black")
-                      nil t "white"))))
-  (let ((buf (get-buffer-create "*Lichess Game Preview*"))
-        (pos (lichess-fen-parse fen)))
-    (with-current-buffer buf
-      (lichess-game-buffer-mode)
-      (lichess-game--render-pos pos perspective
-                                eval-str
-                                "Preview Mode"))
-    (pop-to-buffer buf)))
 
 (defun lichess-game-history-previous ()
   "Move to the previous position in game history."
@@ -290,11 +263,7 @@ PERSPECTIVE is the board orientation (`white' or `black')."
 ;;;###autoload
 (defun lichess-game-watch (id)
   "Watch a Lichess game by ID with a real-time board display and history."
-  (interactive (list
-                (read-string "Lichess game ID to watch: "
-                             nil
-                             nil
-                             lichess-game--debug-id)))
+  (interactive "sLichess game ID to watch: ")
   (let* ((buf-name (lichess-game--stream-buffer-name id))
          (buf (get-buffer-create buf-name)))
     (lichess-game-stream-stop)
@@ -403,51 +372,6 @@ This uses /api/board/game/stream/{id} which has no delay."
            (current-buffer)
            (lichess-game--render-pos pos lichess-game--perspective
                                      eval-str pos-info)))))))
-
-;;;###autoload
-(defun lichess-game-stream-debug (id)
-  "Open NDJSON stream for game ID at /api/stream/game/{id} and pretty-print events."
-  (interactive (list
-                (read-string (format "Lichess game id (default %s): "
-                                     lichess-game--debug-id)
-                             nil nil lichess-game--debug-id)))
-  (let* ((buf
-          (get-buffer-create (lichess-game--stream-buffer-name id))))
-    (with-current-buffer buf
-      (lichess-core-mode))
-    ;; Close previous stream if any
-    (when lichess-game--stream
-      (lichess-http-ndjson-close lichess-game--stream)
-      (setq lichess-game--stream nil))
-    ;; Open a new NDJSON stream via lichess-http
-    (setq lichess-game--stream
-          (lichess-http-ndjson-open
-           (format "/api/stream/game/%s" id)
-           :buffer-name (buffer-name buf)
-           :on-open
-           (lambda (_proc _buf)
-             (lichess-core-with-buf
-              buf (erase-buffer)
-              (insert
-               (format "Connecting NDJSON stream for game %s…\n\n"
-                       id))))
-           :on-event
-           (lambda (obj)
-             (lichess-core-with-buf
-              buf (goto-char (point-max))
-              (insert
-               (format "[%s] — NDJSON event\n"
-                       (format-time-string "%H:%M:%S")))
-              (pp obj (current-buffer)) (insert "\n")))
-           :on-close
-           (lambda (_proc msg)
-             (lichess-core-with-buf
-              buf (goto-char (point-max))
-              (insert
-               (format "[%s] — %s\n"
-                       (format-time-string "%H:%M:%S")
-                       (string-trim msg)))))))
-    (pop-to-buffer buf)))
 
 ;;;###autoload
 (defun lichess-game-stream-stop ()
