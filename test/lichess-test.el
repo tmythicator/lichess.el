@@ -58,9 +58,9 @@
   (should-error (lichess-fen--parse-ep "z9") :type 'user-error))
 
 (ert-deftest lichess-fen-parse-fen-test ()
-  "Test `lichess-chess-parse-fen`."
+  "Test `lichess-fen-parse`."
   (let* ((fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-         (pos (lichess-chess-parse-fen fen)))
+         (pos (lichess-fen-parse fen)))
     (should (eq (lichess-pos-stm pos) 'w))
     (should (equal (lichess-pos-castle pos) "KQkq"))
     (should (equal (lichess-pos-ep pos) nil))
@@ -71,7 +71,7 @@
     (should (= (aref (aref (lichess-pos-board pos) 7) 7) ?R)))
   
   (let* ((fen "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3")
-         (pos (lichess-chess-parse-fen fen)))
+         (pos (lichess-fen-parse fen)))
     (should (eq (lichess-pos-stm pos) 'w))
     (should (= (lichess-pos-halfmove pos) 2))
     (should (= (lichess-pos-fullmove pos) 3))
@@ -100,7 +100,7 @@
 (ert-deftest lichess-fen-render-org-table-test ()
   "Test `lichess-fen-render-org-table` output."
   (let* ((fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-         (pos (lichess-chess-parse-fen fen))
+         (pos (lichess-fen-parse fen))
          (expected-ascii (concat "|r|n|b|q|k|b|n|r|8|\n"
                                  "|p|p|p|p|p|p|p|p|7|\n"
                                  "|.|.|.|.|.|.|.|.|6|\n"
@@ -116,7 +116,7 @@
 (ert-deftest lichess-fen-render-org-table-unicode-test ()
   "Test `lichess-fen-render-org-table` with Unicode pieces."
   (let* ((fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-         (pos (lichess-chess-parse-fen fen))
+         (pos (lichess-fen-parse fen))
          (expected-unicode (concat "|♜|♞|♝|♛|♚|♝|♞|♜|8|\n"
                                    "|♟|♟|♟|♟|♟|♟|♟|♟|7|\n"
                                    "|.|.|.|.|.|.|.|.|6|\n"
@@ -132,7 +132,7 @@
 (ert-deftest lichess-fen-render-org-table-eval-test ()
   "Test `lichess-fen-render-org-table` with evaluation bar."
   (let* ((fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-         (pos (lichess-chess-parse-fen fen))
+         (pos (lichess-fen-parse fen))
          (render (lichess-fen-render-org-table pos nil 'white "0.0")))
     ;; Check if "Eval" header and evaluation blocks are present
     (should (string-match "Eval" render))

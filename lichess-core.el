@@ -1,6 +1,9 @@
 ;;; lichess-core.el --- Core utilities for Lichess.el -*- lexical-binding: t; -*-
 ;;
 ;; Copyright (C) 2025  Alexandr Timchenko
+;; URL: https://github.com/tmythicator/Lichess.el
+;; Version: 0.1
+;; Package-Requires: ((emacs "27.1"))
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 ;; See LICENSE for details.
 ;;
@@ -14,10 +17,6 @@
 (require 'url)
 (require 'lichess-http)
 
-(defgroup lichess nil
-  "Play and interact with Lichess."
-  :group 'games)
-
 (defvar lichess-core-mode-map
   (let ((m (make-sparse-keymap)))
     (set-keymap-parent m special-mode-map)
@@ -25,10 +24,13 @@
     m)
   "Keymap for `lichess-core-mode'.")
 
-(define-derived-mode lichess-core-mode special-mode "Lichess"
-  "Base mode for Lichess buffers."
-  (read-only-mode 1)
-  (setq truncate-lines t))
+(define-derived-mode
+ lichess-core-mode
+ special-mode
+ "Lichess"
+ "Base mode for Lichess buffers."
+ (read-only-mode 1)
+ (setq truncate-lines t))
 
 ;;;; Buffers
 (defmacro lichess-core-with-buf (buf &rest body)

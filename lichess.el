@@ -1,4 +1,4 @@
-;;; lichess.el --- Lichess client for Emacs -*- lexical-binding: t; -*-
+;;; lichess.el --- Lichess client -*- lexical-binding: t; -*-
 ;;
 ;; Copyright (C) 2025  Alexandr Timchenko
 ;;
@@ -39,31 +39,38 @@
 (require 'lichess-ai)
 (require 'lichess-fen)
 
+(defgroup lichess nil
+  "Lichess client."
+  :group 'applications)
+
 (defcustom lichess-token nil
   "Personal Lichess API token."
-  :type 'string :group 'lichess)
+  :type 'string
+  :group 'lichess)
 
 (defvar lichess-diagnose--buf "*Lichess Diagnose*")
 (defun lichess--dbgln (fmt &rest args)
-  "Append FMT line to 'lichess-diagnose--buf' safely."
+  "Append FMT line to `lichess-diagnose--buf' safely."
   (let ((buf (get-buffer lichess-diagnose--buf)))
     (when (buffer-live-p buf)
-      (lichess-core-with-buf buf
-        (goto-char (point-max))
-        (insert (apply #'format fmt args) "\n")))))
+      (lichess-core-with-buf
+       buf (goto-char (point-max))
+       (insert (apply #'format fmt args) "\n")))))
 
 ;;;###autoload
 (defun lichess ()
   "Dispatch Lichess commands."
   (interactive)
-  (let* ((choices '(("Lichess TV: Show channels"      . lichess-tv)
-                    ("Lichess: Watch game"            . lichess-game-watch)
-                    ("Lichess: Play against AI"       . lichess-ai-challenge)
-                    ("(Debug) Diagnose account"       . lichess-diagnose)
-                    ("(Debug) NDJSON Stream" . lichess-game-stream-debug)
-                    ("(Debug) TV: JSON channels" . lichess-tv-debug)
-                    ("(Debug) Render FEN position" . lichess-fen-show)))
-         (pick (completing-read "Lichess: " (mapcar #'car choices) nil t)))
+  (let* ((choices
+          '(("Lichess TV: Show channels" . lichess-tv)
+            ("Lichess: Watch game" . lichess-game-watch)
+            ("Lichess: Play against AI" . lichess-ai-challenge)
+            ("(Debug) Diagnose account" . lichess-diagnose)
+            ("(Debug) NDJSON Stream" . lichess-game-stream-debug)
+            ("(Debug) TV: JSON channels" . lichess-tv-debug)
+            ("(Debug) Render FEN position" . lichess-fen-show)))
+         (pick
+          (completing-read "Lichess: " (mapcar #'car choices) nil t)))
     (call-interactively (cdr (assoc pick choices)))))
 
 ;;;###autoload
@@ -73,11 +80,11 @@
   (let ((buf (get-buffer-create lichess-diagnose--buf)))
     (with-current-buffer buf
       (lichess-core-mode))
-    (lichess-core-with-buf buf
-      (erase-buffer)
-      (insert "Lichess diagnostics\n\n"))
+    (lichess-core-with-buf
+     buf (erase-buffer) (insert "Lichess diagnostics\n\n"))
     (pop-to-buffer buf))
-  (if (not (and (stringp lichess-token) (> (length lichess-token) 10)))
+  (if (not
+       (and (stringp lichess-token) (> (length lichess-token) 10)))
       (lichess--dbgln "Set lichess-token for authenticated calls.")
     (lichess--dbgln "/api/account …")
     (lichess-http-json
@@ -96,8 +103,12 @@
                         (games (alist-get 'nowPlaying j))
                         (n (length games)))
                    (lichess--dbgln (if (> n 0)
-                                       "%d ongoing game(s)" "nowPlaying = []") n)))
-            (_ (lichess--dbgln "HTTP %s /account/playing" (car res2))))))))))
+                                       "%d ongoing game(s)"
+                                     "nowPlaying = []")
+                                   n)))
+            (_
+             (lichess--dbgln "HTTP %s /account/playing"
+                             (car res2))))))))))
 
 (provide 'lichess)
 ;;; lichess.el ends here

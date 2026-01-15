@@ -1,19 +1,26 @@
 ;;; lichess-game.el --- Game stream/debug utilities for Lichess -*- lexical-binding: t; -*-
 ;;
 ;; Copyright (C) 2025  Alexandr Timchenko
+;; URL: https://github.com/tmythicator/Lichess.el
+;; Version: 0.1
+;; Package-Requires: ((emacs "27.1"))
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 ;; See LICENSE for details.
 ;;
 ;;; Commentary:
 ;; Minimal game streaming/debug using NDJSON:
 ;; - M-x lichess-game-watch         -> watch a game with live board and history navigation
+;; - M-x lichess-game-play          -> play/watch your own game (Real-time)
 ;; - M-x lichess-game-stream-debug  -> pretty-print /api/stream/game/{id}
 ;; - M-x lichess-game-stream-stop   -> close the current stream
+;;
+;; Note: Use `lichess-game-play' for zero-latency updates on your own games.
 ;;
 ;;; Code:
 
 (require 'lichess-core)
 (require 'lichess-util)
+(require 'lichess-fen)
 
 (defvar lichess-game--stream nil
   "Current `lichess-http-stream' for a game NDJSON, or nil when not running.")
@@ -33,9 +40,11 @@
 (defvar-local lichess-game--live-mode t
   "Buffer-local flag. When non-nil, board updates automatically.")
 (defvar-local lichess-game--perspective 'white
-  "The current board perspective. Can be 'white, 'black or 'auto.")
+  "The current board perspective. Can be \`white', \`black' or \`auto'.")
 (defvar-local lichess-game--id nil
   "The ID of the game being watched/played in this buffer.")
+(defvar-local lichess-game--initial-pos nil
+  "Buffer-local parsed `lichess-pos' of the starting position.")
 
 (defvar lichess-game-buffer-mode-map
   (let ((m (make-sparse-keymap)))
@@ -46,13 +55,18 @@
     (define-key m (kbd "l") #'lichess-game-evaluate-history)
     (define-key m (kbd "m") #'lichess-game-move)
     m))
-(define-key lichess-game-buffer-mode-map (kbd "m") #'lichess-game-move)
+(define-key
+ lichess-game-buffer-mode-map (kbd "m") #'lichess-game-move)
 
-(define-derived-mode lichess-game-buffer-mode special-mode "Lichess-Game"
-  "Major mode for live Lichess game buffers."
-  (setq truncate-lines t))
+(define-derived-mode
+ lichess-game-buffer-mode
+ special-mode
+ "Lichess-Game"
+ "Major mode for live Lichess game buffers."
+ (setq truncate-lines t))
 
-(defun lichess-game--render-pos (pos perspective &optional eval-str pos-info)
+(defun lichess-game--render-pos
+    (pos perspective &optional eval-str pos-info)
   "Render the complete game view for POS in the current buffer.
 
 This function is the main renderer. It clears the buffer and draws
@@ -60,54 +74,76 @@ the header, the board (with an optional evaluation bar), and any
 additional position information.
 
 ARGUMENTS:
-- POS: A `lichess-pos` struct representing the chess position.
-- PERSPECTIVE: A symbol, either 'white, 'black, or 'auto.
+- POS: A \`lichess-pos' struct representing the chess position.
+- PERSPECTIVE: A symbol, either \`white', \`black', or \`auto'.
 - EVAL-STR: An optional evaluation string (e.g., \"+0.52\" or \"M3\").
 - POS-INFO: An optional string with context (e.g., \"\n\nPosition 5/42\")."
-  (erase-buffer)
-  (insert (lichess-fen-render-heading pos "org+unicode" perspective))
-  (insert (lichess-fen-render-org-table pos t perspective eval-str))
-  (when pos-info
-    (insert (format "\n\n%s" pos-info)))
-  (when (fboundp 'org-table-align)
-    (save-excursion
-      (goto-char (point-min))
-      (org-table-align)))
-  (goto-char (point-min)))
+  (let ((inhibit-read-only t))
+    (erase-buffer)
+    (insert
+     (lichess-fen-render-heading pos "org+unicode" perspective))
+    (insert (lichess-fen-render-org-table pos t perspective eval-str))
+    (when pos-info
+      (insert (format "\n\n%s" pos-info)))
+    (when (fboundp 'org-table-align)
+      (save-excursion
+        (goto-char (point-min))
+        (org-table-align)))
+    (goto-char (point-min))))
 
 (defun lichess-game-history-previous ()
   "Move to the previous position in game history."
   (interactive)
-  (when (and lichess-game--current-idx (> lichess-game--current-idx 0))
+  (when (and lichess-game--current-idx
+             (> lichess-game--current-idx 0))
     (setq lichess-game--live-mode nil)
     (setq lichess-game--current-idx (1- lichess-game--current-idx))
-    (let* ((fen (aref lichess-game--fen-history lichess-game--current-idx))
-           (eval-str (gethash lichess-game--current-idx lichess-game--eval-cache))
-           (pos (ignore-errors (lichess-chess-parse-fen fen)))
-           (pos-info (format "Position %d/%d"
-                             (1+ lichess-game--current-idx)
-                             (length lichess-game--fen-history))))
+    (let* ((fen
+            (aref
+             lichess-game--fen-history lichess-game--current-idx))
+           (eval-str
+            (gethash
+             lichess-game--current-idx lichess-game--eval-cache))
+           (pos
+            (ignore-errors
+              (lichess-fen-parse fen)))
+           (pos-info
+            (format "Position %d/%d"
+                    (1+ lichess-game--current-idx)
+                    (length lichess-game--fen-history))))
       (when pos
-        (lichess-core-with-buf (current-buffer)
-          (message pos-info)
-          (lichess-game--render-pos pos lichess-game--perspective eval-str pos-info))))))
+        (lichess-core-with-buf
+         (current-buffer) (message pos-info)
+         (lichess-game--render-pos pos lichess-game--perspective
+                                   eval-str pos-info))))))
 
 (defun lichess-game-history-next ()
   "Move to the next position in game history."
   (interactive)
-  (when (and lichess-game--current-idx (< lichess-game--current-idx (1- (length lichess-game--fen-history))))
+  (when (and lichess-game--current-idx
+             (< lichess-game--current-idx
+                (1- (length lichess-game--fen-history))))
     (setq lichess-game--current-idx (1+ lichess-game--current-idx))
-    (let* ((fen (aref lichess-game--fen-history lichess-game--current-idx))
-           (eval-str (gethash lichess-game--current-idx lichess-game--eval-cache))
-           (pos (ignore-errors (lichess-chess-parse-fen fen)))
-           (pos-info (format "Position %d/%d"
-                             (1+ lichess-game--current-idx)
-                             (length lichess-game--fen-history))))
+    (let* ((fen
+            (aref
+             lichess-game--fen-history lichess-game--current-idx))
+           (eval-str
+            (gethash
+             lichess-game--current-idx lichess-game--eval-cache))
+           (pos
+            (ignore-errors
+              (lichess-fen-parse fen)))
+           (pos-info
+            (format "Position %d/%d"
+                    (1+ lichess-game--current-idx)
+                    (length lichess-game--fen-history))))
       (when pos
-        (lichess-core-with-buf (current-buffer)
-          (message pos-info)
-          (lichess-game--render-pos pos lichess-game--perspective eval-str pos-info))))
-    (when (= lichess-game--current-idx (1- (length lichess-game--fen-history)))
+        (lichess-core-with-buf
+         (current-buffer) (message pos-info)
+         (lichess-game--render-pos pos lichess-game--perspective
+                                   eval-str pos-info))))
+    (when (= lichess-game--current-idx
+             (1- (length lichess-game--fen-history)))
       (setq lichess-game--live-mode t))))
 
 (defun lichess-game--extract-fen (obj)
@@ -119,7 +155,8 @@ ARGUMENTS:
 (defun lichess-game--fen-history-vpush (fen)
   "Append FEN to the lichess-game--fen-history vector."
   (let* ((len (length lichess-game--fen-history))
-         (last (and (> len 0) (aref lichess-game--fen-history (1- len)))))
+         (last
+          (and (> len 0) (aref lichess-game--fen-history (1- len)))))
     (unless (and last (string= last fen))
       (setq lichess-game--fen-history
             (vconcat lichess-game--fen-history (vector fen))))))
@@ -131,14 +168,111 @@ ARGUMENTS:
   (setq-local lichess-game--current-idx -1)
   (setq-local lichess-game--live-mode t)
   (setq-local lichess-game--id nil)
+  (setq-local lichess-game--initial-pos nil)
   (setq-local lichess-game--perspective 'white))
+
+(defun lichess-game--fmt-player-name (user-obj)
+  "Extract a readable name from a Lichess player/user object."
+  (or (lichess-util--aget user-obj 'name)
+      (lichess-util--aget user-obj 'username)
+      (lichess-util--aget user-obj 'id)
+      (when-let ((lvl (lichess-util--aget user-obj 'aiLevel)))
+        (format "Stockfish level %d" lvl))
+      (when-let ((ai (lichess-util--aget user-obj 'ai)))
+        (format "Stockfish level %d" ai))
+      "Anonymous"))
+
+(defun lichess-game--stream-on-open (id buf msg-prefix _proc _buf)
+  "Callback for NDJSON stream open."
+  (lichess-core-with-buf
+   buf
+   (unless (eq major-mode 'lichess-game-buffer-mode)
+     (lichess-game-buffer-mode))
+   (lichess-game--reset-local-vars)
+   (setq-local lichess-game--id id)
+   (erase-buffer)
+   (insert (format "%s %s…\n" msg-prefix id))))
+
+(defun lichess-game--stream-on-event (buf obj)
+  "Callback for spectator NDJSON stream events (contains FEN)."
+  (lichess-core-with-buf
+   buf
+   (let ((fen (lichess-game--extract-fen obj))
+         (white (lichess-util--aget obj 'white))
+         (black (lichess-util--aget obj 'black)))
+     ;; Update names if found (usually in the first message)
+     (when (or white black)
+       (let ((w-name (lichess-game--fmt-player-name white))
+             (b-name (lichess-game--fmt-player-name black)))
+         (goto-char (point-max))
+         (insert
+          (format "\nWatching: %s (W) vs %s (B)\n" w-name b-name))))
+     ;; Render FEN
+     (when fen
+       (lichess-game--fen-history-vpush fen)
+       (when lichess-game--live-mode
+         (setq lichess-game--current-idx
+               (1- (length lichess-game--fen-history)))
+         (when-let ((pos
+                     (ignore-errors
+                       (lichess-fen-parse fen))))
+           (lichess-game--render-pos
+            pos lichess-game--perspective)))))))
+
+(defun lichess-game--board-on-event (buf obj)
+  "Callback for Board API stream events."
+  (lichess-core-with-buf
+   buf
+   (let* ((type (lichess-util--aget obj 'type))
+          (state (or (lichess-util--aget obj 'state) obj))
+          (moves (lichess-util--aget state 'moves))
+          (white (lichess-util--aget obj 'white))
+          (black (lichess-util--aget obj 'black)))
+
+     ;; 1. Handle game setup
+     (when (string= type "gameFull")
+       (let* ((ifen
+               (or (lichess-util--aget obj 'initialFen) "startpos"))
+              (ipos (lichess-fen-parse ifen))
+              (w-name (lichess-game--fmt-player-name white))
+              (b-name (lichess-game--fmt-player-name black)))
+         (setq-local lichess-game--initial-pos ipos)
+         (goto-char (point-max))
+         (insert
+          (format "\nGame (Board API): %s (W) vs %s (B)\n"
+                  w-name
+                  b-name))))
+
+     ;; 2. Reconstruct FEN and update history
+     (when-let ((ipos lichess-game--initial-pos))
+       (let* ((current-pos (lichess-fen-apply-moves ipos moves))
+              (current-fen (lichess-fen-pos->fen current-pos)))
+         (lichess-game--fen-history-vpush current-fen)
+         (when lichess-game--live-mode
+           (setq lichess-game--current-idx
+                 (1- (length lichess-game--fen-history)))
+           (lichess-game--render-pos
+            current-pos lichess-game--perspective)))))))
+
+(defun lichess-game--stream-on-close (buf msg-prefix _proc msg)
+  "Callback for NDJSON stream close."
+  (when (buffer-live-p buf)
+    (lichess-core-with-buf
+     buf (goto-char (point-max))
+     (insert
+      (format "\n[%s] — %s disconnected: %s\n"
+              (format-time-string "%H:%M:%S")
+              msg-prefix
+              (string-trim msg))))))
 
 ;;;###autoload
 (defun lichess-game-watch (id)
   "Watch a Lichess game by ID with a real-time board display and history."
-  (interactive
-   (list
-    (read-string "Lichess game ID to watch: " nil nil lichess-game--debug-id)))
+  (interactive (list
+                (read-string "Lichess game ID to watch: "
+                             nil
+                             nil
+                             lichess-game--debug-id)))
   (let* ((buf-name (lichess-game--stream-buffer-name id))
          (buf (get-buffer-create buf-name)))
     (lichess-game-stream-stop)
@@ -148,33 +282,36 @@ ARGUMENTS:
            (format "/api/stream/game/%s" id)
            :buffer-name (buffer-name buf)
            :on-open
-           (lambda (_proc _buf)
-             (lichess-core-with-buf buf
-               (unless (eq major-mode 'lichess-game-buffer-mode)
-                 (lichess-game-buffer-mode))
-               (lichess-game--reset-local-vars)
-               (setq lichess-game--id id)
-               (erase-buffer)
-               (insert (format "Connecting to game %s…\n" id))))
+           (apply-partially #'lichess-game--stream-on-open
+                            id buf "Connecting to game (Spectator)")
            :on-event
-           (lambda (obj)
-             (lichess-core-with-buf buf
-               (unless (lichess-util--aget obj 'id)
-                 (when-let ((fen (lichess-game--extract-fen obj)))
-                   (lichess-game--fen-history-vpush fen)
-                   (when lichess-game--live-mode
-                     (setq lichess-game--current-idx (1- (length lichess-game--fen-history)))
-                     (when-let ((pos (ignore-errors (lichess-chess-parse-fen fen))))
-                       (lichess-game--render-pos pos lichess-game--perspective)))))))
+           (apply-partially #'lichess-game--stream-on-event buf)
            :on-close
-           (lambda (_proc msg)
-             (when (buffer-live-p buf)
-               (lichess-core-with-buf buf
-                 (goto-char (point-max))
-                 (insert (format "\n[%s] — Stream disconnected: %s\n"
-                                 (format-time-string "%H:%M:%S")
-                                 (string-trim msg))))))))
-    ;; 4. Finally, we show the buffer.
+           (apply-partially #'lichess-game--stream-on-close
+                            buf "Stream")))
+    (pop-to-buffer buf)))
+
+;;;###autoload
+(defun lichess-game-play (id)
+  "Watch a game you are playing using the Board API for zero-delay updates.
+This uses /api/board/game/stream/{id} which has no delay."
+  (interactive "sGame ID: ")
+  (let* ((buf-name (lichess-game--stream-buffer-name id))
+         (buf (get-buffer-create buf-name)))
+    (lichess-game-stream-stop)
+    (setq lichess-game--stream
+          (lichess-http-ndjson-open
+           (format "/api/board/game/stream/%s" id)
+           :buffer-name (buffer-name buf)
+           :on-open
+           (apply-partially
+            #'lichess-game--stream-on-open
+            id buf "Connecting to your game (Zero-delay)")
+           :on-event
+           (apply-partially #'lichess-game--board-on-event buf)
+           :on-close
+           (apply-partially #'lichess-game--stream-on-close
+                            buf "Zero-delay stream")))
     (pop-to-buffer buf)))
 
 ;;;###autoload
@@ -182,57 +319,80 @@ ARGUMENTS:
   "Fetch cloud evaluations for all moves in the current game history."
   (interactive)
   (let ((game-buf (current-buffer)))
-    (message "Batch fetching evaluations for %d moves..." (length lichess-game--fen-history))
+    (message "Batch fetching evaluations for %d moves..."
+             (length lichess-game--fen-history))
     (dotimes (i (length lichess-game--fen-history))
       (let ((cached-eval (gethash i lichess-game--eval-cache)))
         (when (or (null cached-eval)
+                  (string-empty-p cached-eval)
                   (string= cached-eval "..."))
           (let* ((fen (aref lichess-game--fen-history i))
-                 (pos (ignore-errors (lichess-chess-parse-fen fen)))
-                 (pos-info (format "Position %d/%d"
-                                   (1+ lichess-game--current-idx)
-                                   (length lichess-game--fen-history))))
+                 (pos
+                  (ignore-errors
+                    (lichess-fen-parse fen)))
+                 (pos-info
+                  (format "Position %d/%d"
+                          (1+ lichess-game--current-idx)
+                          (length lichess-game--fen-history))))
             (when pos
               (puthash i "..." lichess-game--eval-cache)
               (lichess-util-fetch-evaluation
                fen
                (lambda (eval-str)
-                 (lichess-core-with-buf game-buf
-                   (puthash i eval-str lichess-game--eval-cache)
-                   (when (= i lichess-game--current-idx)
-                     (lichess-game--render-pos
-                      pos
-                      lichess-game--perspective
-                      eval-str pos-info))))))))))))
+                 (lichess-core-with-buf
+                  game-buf
+                  (puthash i eval-str lichess-game--eval-cache)
+                  (when (= i lichess-game--current-idx)
+                    (lichess-game--render-pos
+                     pos lichess-game--perspective
+                     eval-str pos-info))))))))))))
 
 ;;;###autoload
 (defun lichess-game-set-perspective ()
   "Set the board perspective for the current game buffer."
   (interactive)
   (let* ((choices '("auto" "white" "black"))
-         (new-persp-str (completing-read "Set perspective: " choices nil t nil nil "auto"))
+         (new-persp-str
+          (completing-read "Set perspective: " choices
+                           nil
+                           t
+                           nil
+                           nil
+                           "auto"))
          (new-persp (intern new-persp-str)))
     (setq lichess-game--perspective new-persp)
     ;; Re-render the current position with the new perspective
     (when lichess-game--current-idx
-      (let* ((fen (aref lichess-game--fen-history lichess-game--current-idx))
-             (pos (ignore-errors (lichess-chess-parse-fen fen)))
-             (eval-str (gethash lichess-game--current-idx lichess-game--eval-cache))
-             (pos-info (format "Position %d/%d"
-                               (1+ lichess-game--current-idx)
-                               (length lichess-game--fen-history))))
-        (when pos (lichess-core-with-buf (current-buffer) (lichess-game--render-pos pos lichess-game--perspective eval-str pos-info)))))))
+      (let* ((fen
+              (aref
+               lichess-game--fen-history lichess-game--current-idx))
+             (pos
+              (ignore-errors
+                (lichess-fen-parse fen)))
+             (eval-str
+              (gethash
+               lichess-game--current-idx lichess-game--eval-cache))
+             (pos-info
+              (format "Position %d/%d"
+                      (1+ lichess-game--current-idx)
+                      (length lichess-game--fen-history))))
+        (when pos
+          (lichess-core-with-buf
+           (current-buffer)
+           (lichess-game--render-pos pos lichess-game--perspective
+                                     eval-str pos-info)))))))
 
 ;;;###autoload
 (defun lichess-game-stream-debug (id)
   "Open NDJSON stream for game ID at /api/stream/game/{id} and pretty-print events."
-  (interactive
-   (list
-    (read-string
-     (format "Lichess game id (default %s): " lichess-game--debug-id)
-     nil nil lichess-game--debug-id)))
-  (let* ((buf (get-buffer-create (lichess-game--stream-buffer-name id))))
-    (with-current-buffer buf (lichess-core-mode))
+  (interactive (list
+                (read-string (format "Lichess game id (default %s): "
+                                     lichess-game--debug-id)
+                             nil nil lichess-game--debug-id)))
+  (let* ((buf
+          (get-buffer-create (lichess-game--stream-buffer-name id))))
+    (with-current-buffer buf
+      (lichess-core-mode))
     ;; Close previous stream if any
     (when lichess-game--stream
       (lichess-http-ndjson-close lichess-game--stream)
@@ -242,23 +402,29 @@ ARGUMENTS:
           (lichess-http-ndjson-open
            (format "/api/stream/game/%s" id)
            :buffer-name (buffer-name buf)
-           :on-open (lambda (_proc _buf)
-                      (lichess-core-with-buf buf
-                        (erase-buffer)
-                        (insert (format "Connecting NDJSON stream for game %s…\n\n" id))))
-           :on-event (lambda (obj)
-                       (lichess-core-with-buf buf
-                         (goto-char (point-max))
-                         (insert (format "[%s] — NDJSON event\n"
-                                         (format-time-string "%H:%M:%S")))
-                         (pp obj (current-buffer))
-                         (insert "\n")))
-           :on-close (lambda (_proc msg)
-                       (lichess-core-with-buf buf
-                         (goto-char (point-max))
-                         (insert (format "[%s] — %s\n"
-                                         (format-time-string "%H:%M:%S")
-                                         (string-trim msg)))))))
+           :on-open
+           (lambda (_proc _buf)
+             (lichess-core-with-buf
+              buf (erase-buffer)
+              (insert
+               (format "Connecting NDJSON stream for game %s…\n\n"
+                       id))))
+           :on-event
+           (lambda (obj)
+             (lichess-core-with-buf
+              buf (goto-char (point-max))
+              (insert
+               (format "[%s] — NDJSON event\n"
+                       (format-time-string "%H:%M:%S")))
+              (pp obj (current-buffer)) (insert "\n")))
+           :on-close
+           (lambda (_proc msg)
+             (lichess-core-with-buf
+              buf (goto-char (point-max))
+              (insert
+               (format "[%s] — %s\n"
+                       (format-time-string "%H:%M:%S")
+                       (string-trim msg)))))))
     (pop-to-buffer buf)))
 
 ;;;###autoload
@@ -288,7 +454,9 @@ MOVE should be in UCI format (e.g., e2e4)."
              (json (cdr res)))
          (if (= status 200)
              (message "Move %s sent successfully" move)
-           (message "Error sending move: %d %s" status (or (lichess-util--aget json 'error) "")))))
+           (message "Error sending move: %d %s"
+                    status
+                    (or (lichess-util--aget json 'error) "")))))
      :method "POST")))
 
 (provide 'lichess-game)

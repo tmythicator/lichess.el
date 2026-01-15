@@ -1,6 +1,9 @@
 ;;; lichess-ai.el --- Play against Lichess AI -*- lexical-binding: t; -*-
 ;;
 ;; Copyright (C) 2025  Alexandr Timchenko
+;; URL: https://github.com/tmythicator/Lichess.el
+;; Version: 0.1
+;; Package-Requires: ((emacs "27.1"))
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 ;;
 ;;; Commentary:
@@ -17,31 +20,43 @@
 
 (defcustom lichess-ai-default-level 1
   "Default AI level (1-8)."
-  :type 'integer :group 'lichess)
+  :type 'integer
+  :group 'lichess)
 
 (defcustom lichess-ai-default-clock-limit 300
   "Default clock limit in seconds (5 minutes)."
-  :type 'integer :group 'lichess)
+  :type 'integer
+  :group 'lichess)
 
 (defcustom lichess-ai-default-clock-increment 3
   "Default clock increment in seconds."
-  :type 'integer :group 'lichess)
+  :type 'integer
+  :group 'lichess)
 
 ;;;###autoload
 (defun lichess-ai-challenge ()
   "Prompt for AI game parameters and start a game."
   (interactive)
-  (let* ((level (read-number "AI Level (1-8): " lichess-ai-default-level))
-         (color (completing-read "Your Color: " '("white" "black" "random") nil t "white"))
-         (limit (read-number "Clock limit (seconds): " lichess-ai-default-clock-limit))
-         (increment (read-number "Clock increment (seconds): " lichess-ai-default-clock-increment)))
+  (let* ((level
+          (read-number "AI Level (1-8): " lichess-ai-default-level))
+         (color
+          (completing-read "Your Color: " '("white" "black" "random")
+                           nil t "white"))
+         (limit
+          (read-number "Clock limit (seconds): "
+                       lichess-ai-default-clock-limit))
+         (increment
+          (read-number "Clock increment (seconds): "
+                       lichess-ai-default-clock-increment)))
     (lichess-ai--start-game level color limit increment)))
 
 (defun lichess-ai--start-game (level color limit increment)
   "Actually send the POST request to Lichess."
   (message "Challenging Lichess AI level %d..." level)
-  (let* ((data (format "level=%d&color=%s&clock.limit=%d&clock.increment=%d"
-                       level color limit increment)))
+  (let* ((data
+          (format
+           "level=%d&color=%s&clock.limit=%d&clock.increment=%d"
+           level color limit increment)))
     (lichess-http-request
      "/api/challenge/ai"
      (lambda (res)
@@ -53,8 +68,11 @@
                    (progn
                      (message "Game started! ID: %s" id)
                      (lichess-game-play id))
-                 (message "Error: No game ID returned from Lichess.")))
-           (message "Lichess AI error: %d %s" status (or (lichess-util--aget json 'error) "")))))
+                 (message
+                  "Error: No game ID returned from Lichess.")))
+           (message "Lichess AI error: %d %s"
+                    status
+                    (or (lichess-util--aget json 'error) "")))))
      :method "POST"
      :data data
      :headers '(("Content-Type" . "application/x-www-form-urlencoded")))))

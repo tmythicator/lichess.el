@@ -1,8 +1,13 @@
-;;; lichess-fen.el --- FEN parser and Org renderers for Lichess/Emacs -*- lexical-binding: t; -*-
+;;; lichess-fen.el --- FEN parser and Org renderers for Lichess -*- lexical-binding: t; -*-
+;;
+;; Copyright (C) 2025  Alexandr Timchenko
+;; URL: https://github.com/tmythicator/Lichess.el
+;; Version: 0.1
+;; Package-Requires: ((emacs "27.1"))
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 
 ;;; Commentary:
-;; - lichess-chess-parse-fen: FEN -> position struct
+;; - lichess-fen-parse: FEN -> position struct
 ;; - lichess-fen-render-org-table: Org-mode table (ASCII or Unicode)
 ;; - lichess-fen-show: interactive preview (Org / Org+Unicode)
 
@@ -15,31 +20,39 @@
 
 (defvar lichess-fen--buf "*Lichess FEN*")
 
-(cl-defstruct lichess-pos
-  "Internal chess position. Row 0 = rank 8 (top)."
-  board      ;; vector[8] of vector[8] chars
-  stm        ;; 'w or 'b
-  castle     ;; string like "KQkq" or "-"
-  ep         ;; (row . col) or nil
-  halfmove   ;; int
-  fullmove)  ;; int
+(cl-defstruct
+ lichess-pos "Internal chess position. Row 0 = rank 8 (top)."
+ board ;; vector[8] of vector[8] chars
+ stm ;; 'w or 'b
+ castle ;; string like "KQkq" or "-"
+ ep ;; (row . col) or nil
+ halfmove ;; int
+ fullmove) ;; int
 
 ;;; FEN -> position
-(defun lichess-chess-parse-fen (fen)
+(defun lichess-fen-parse (fen)
   "Parse FEN string into a `lichess-pos' struct."
-  (let* ((fields    (split-string (string-trim fen) " +" t))
-         (placement (nth 0 fields))
-         (active    (nth 1 fields))
-         (castle    (or (nth 2 fields) "-"))
-         (ep-s      (or (nth 3 fields) "-"))
-         (hmc       (string-to-number (or (nth 4 fields) "0")))
-         (fmn       (string-to-number (or (nth 5 fields) "1")))
-         (rows      (split-string placement "/" t))
-         (board     (lichess-fen--rows->board rows))
-         (ep        (lichess-fen--parse-ep ep-s)))
+  (let*
+      ((raw-fen
+        (if (string= fen "startpos")
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+          fen))
+       (fields (split-string (string-trim raw-fen) " +" t))
+       (placement (nth 0 fields))
+       (active (nth 1 fields))
+       (castle (or (nth 2 fields) "-"))
+       (ep-s (or (nth 3 fields) "-"))
+       (hmc (string-to-number (or (nth 4 fields) "0")))
+       (fmn (string-to-number (or (nth 5 fields) "1")))
+       (rows (split-string placement "/" t))
+       (board (lichess-fen--rows->board rows))
+       (ep (lichess-fen--parse-ep ep-s)))
     (make-lichess-pos
      :board board
-     :stm (if (string= active "b") 'b 'w)
+     :stm
+     (if (string= active "b")
+         'b
+       'w)
      :castle castle
      :ep ep
      :halfmove hmc
@@ -48,13 +61,14 @@
 (defun lichess-fen--rows->board (rows)
   "Convert 8 FEN ROWS into an 8×8 vector of piece chars.
 Each element of ROWS is a string like \"rnbqkbnr\" or \"3p4\".
-Return a vector[8] of vector[8] characters. Signals `user-error' on malformed input."
+Return a vector[8] of vector[8] characters.
+Signals \`user-error' on malformed input."
   (unless (= (length rows) 8)
     (user-error "Invalid FEN: expected 8 rows, got %d" (length rows)))
   (let ((board (make-vector 8 nil)))
     (dotimes (r 8)
       (let* ((rowstr (nth r rows))
-             (cols   (make-vector 8 ?.))
+             (cols (make-vector 8 ?.))
              (c 0))
         ;; iterate over each char
         (seq-do
@@ -70,7 +84,9 @@ Return a vector[8] of vector[8] characters. Signals `user-error' on malformed in
              (aset cols c ch)
              (setq c (1+ c)))
             (t
-             (user-error "Invalid FEN char: %c at rank %d" ch (- 8 r)))))
+             (user-error "Invalid FEN char: %c at rank %d"
+                         ch
+                         (- 8 r)))))
          rowstr)
         (when (/= c 8)
           (user-error "FEN row underflow at rank %d" (- 8 r)))
@@ -83,72 +99,111 @@ Return (row . col) or nil. Valid ranks are only 3 and 6."
   (when (and (stringp ep-s) (not (string= ep-s "-")))
     (unless (string-match-p "\\`[a-hA-H][36]\\'" ep-s)
       (user-error "Invalid en passant square: %S" ep-s))
-    (let* ((file (downcase (aref ep-s 0)))
-           (rank (string-to-number (string (aref ep-s 1)))) ;; e.g. 3 or 6
-           (col  (cl-position file "abcdefgh"))        ;; a->0, ... h->7
-           (row  (- 8 rank)))
+    (let*
+        ((file (downcase (aref ep-s 0)))
+         (rank (string-to-number (string (aref ep-s 1)))) ;; e.g. 3 or 6
+         (col (cl-position file "abcdefgh")) ;; a->0, ... h->7
+         (row (- 8 rank)))
       (cons row col))))
 
 ;;; Org renderers
 (defun lichess-fen--piece->unicode (ch)
   "Map ASCII piece CH to Unicode figure (string)."
   (pcase ch
-    (?K "♔") (?Q "♕") (?R "♖") (?B "♗") (?N "♘") (?P "♙")
-    (?k "♚") (?q "♛") (?r "♜") (?b "♝") (?n "♞") (?p "♟")
+    (?K "♔")
+    (?Q "♕")
+    (?R "♖")
+    (?B "♗")
+    (?N "♘")
+    (?P "♙")
+    (?k "♚")
+    (?q "♛")
+    (?r "♜")
+    (?b "♝")
+    (?n "♞")
+    (?p "♟")
     (_ ".")))
 
-(defun lichess-fen-render-org-table (pos &optional unicode perspective eval-str)
+(defun lichess-fen-render-org-table
+    (pos &optional unicode perspective eval-str)
   "Return an Org-mode table string for POS.
 If EVAL-STR is non-nil, render a vertical evaluation bar next to the board."
   (let* ((board-lines
           ;; First, generate the board as a list of strings
-          (let* ((b     (lichess-pos-board pos))
-                 (fmt   (if unicode #'lichess-fen--piece->unicode
-                          (lambda (ch) (if (= ch ?.) "." (char-to-string ch)))))
-                 (persp (if (or (null perspective) (eq perspective 'auto))
-                            (if (eq (lichess-pos-stm pos) 'b) 'black 'white)
-                          perspective))
-                 (flip  (eq persp 'black))
-                 (col-seq (if flip (number-sequence 7 0 -1) (number-sequence 0 7)))
-                 (row-seq (if flip (number-sequence 7 0 -1) (number-sequence 0 7)))
-                 (files   (if flip '("h" "g" "f" "e" "d" "c" "b" "a")
-                            '("a" "b" "c" "d" "e" "f" "g" "h")))
-                 (header (format "|%s| " (mapconcat #'identity files "|")))
-                 (sep    "|-+-+-+-+-+-+-+-+-|"))
+          (let* ((b (lichess-pos-board pos))
+                 (fmt
+                  (if unicode
+                      #'lichess-fen--piece->unicode
+                    (lambda (ch)
+                      (if (= ch ?.)
+                          "."
+                        (char-to-string ch)))))
+                 (persp
+                  (if (or (null perspective) (eq perspective 'auto))
+                      (if (eq (lichess-pos-stm pos) 'b)
+                          'black
+                        'white)
+                    perspective))
+                 (flip (eq persp 'black))
+                 (col-seq
+                  (if flip
+                      (number-sequence 7 0 -1)
+                    (number-sequence 0 7)))
+                 (row-seq
+                  (if flip
+                      (number-sequence 7 0 -1)
+                    (number-sequence 0 7)))
+                 (files
+                  (if flip
+                      '("h" "g" "f" "e" "d" "c" "b" "a")
+                    '("a" "b" "c" "d" "e" "f" "g" "h")))
+                 (header
+                  (format "|%s| " (mapconcat #'identity files "|")))
+                 (sep "|-+-+-+-+-+-+-+-+-|"))
             (cl-labels
-                ((row->line (r)
-                   (let* ((rowv (aref b r))
-                          (cells (mapcar (lambda (c) (funcall fmt (aref rowv c))) col-seq))
-                          (rank-label (- 8 r)))
-                     (format "|%s|%d|" (string-join cells "|") rank-label))))
-              (append
-               (mapcar #'row->line row-seq)
-               (list sep header)))))
+             ((row->line
+               (r)
+               (let* ((rowv (aref b r))
+                      (cells
+                       (mapcar
+                        (lambda (c)
+                          (funcall fmt (aref rowv c)))
+                        col-seq))
+                      (rank-label (- 8 r)))
+                 (format "|%s|%d|"
+                         (string-join cells "|")
+                         rank-label))))
+             (append
+              (mapcar #'row->line row-seq) (list sep header)))))
 
          (board-rows (seq-subseq board-lines 0 8))
-         (sep        (nth 8 board-lines))
-         (header     (nth 9 board-lines)))
+         (sep (nth 8 board-lines))
+         (header (nth 9 board-lines)))
 
     (if (or (not eval-str) (string= eval-str "..."))
         ;; If no eval-str, just return the board as a single string.
         (string-join (append board-rows (list sep header)) "\n")
 
       ;; If eval-str exists, stitch the bar to the right of the board.
-      (let* ((bar-lines (lichess-fen--render-evaluation-bar eval-str 8 perspective))
+      (let* ((bar-lines
+              (lichess-fen--render-evaluation-bar
+               eval-str 8 perspective))
              (bar-header (car bar-lines))
-             (bar-body   (cdr bar-lines)) ; The 8 characters of the bar
+             (bar-body (cdr bar-lines)) ; The 8 characters of the bar
              (stitched-rows '()))
         ;; Combine each board row with its corresponding bar character.
         (dotimes (i 8)
-          (push (format "%s  %s" (nth i board-rows) (nth i bar-body)) stitched-rows))
+          (push (format "%s  %s" (nth i board-rows) (nth i bar-body))
+                stitched-rows))
 
-        (string-join
-         (append (reverse stitched-rows)
-                 (list sep (format "%s  %s" header bar-header)))
-         "\n")))))
+        (string-join (append
+                      (reverse stitched-rows)
+                      (list sep (format "%s  %s" header bar-header)))
+                     "\n")))))
 
 
-(defun lichess-fen--render-evaluation-bar (eval-str height perspective)
+(defun lichess-fen--render-evaluation-bar
+    (eval-str height perspective)
   "Return a list of strings representing a vertical evaluation bar."
   (let* ((bar (make-vector height " "))
          (advantage-char "█")
@@ -156,12 +211,20 @@ If EVAL-STR is non-nil, render a vertical evaluation bar next to the board."
          (max-eval 8.0)
          (eval-num
           (cond
-           ((null eval-str) 0.0)
+           ((null eval-str)
+            0.0)
            ((string-prefix-p "M" eval-str)
-            (if (string-prefix-p "M-" eval-str) (- max-eval) max-eval))
-           (t (string-to-number eval-str))))
-         (relative-eval (if (eq perspective 'black) (- eval-num) eval-num)))
-    (setq relative-eval (max (- max-eval) (min max-eval relative-eval)))
+            (if (string-prefix-p "M-" eval-str)
+                (- max-eval)
+              max-eval))
+           (t
+            (string-to-number eval-str))))
+         (relative-eval
+          (if (eq perspective 'black)
+              (- eval-num)
+            eval-num)))
+    (setq relative-eval
+          (max (- max-eval) (min max-eval relative-eval)))
     (let* ((mid-point (/ (1- height) 2.0))
            (fill-ratio (/ relative-eval max-eval))
            (advantage-blocks (round (* (+ 1 fill-ratio) mid-point))))
@@ -173,50 +236,172 @@ If EVAL-STR is non-nil, render a vertical evaluation bar next to the board."
 
 (defun lichess-fen-render-heading (pos style perspective)
   "Return heading string for the POS with chosen STYLE and PERSPECTIVE."
-  (format "FEN preview (%s), side-to-move: %s, perspective: %s, castle: %s, ep: %s, hm: %d, fm: %d\n\n"
-          style
-          (if (eq (lichess-pos-stm pos) 'w) "white" "black")
-          (symbol-name perspective)
-          (lichess-pos-castle pos)
-          (or (when-let ((ep (lichess-pos-ep pos)))
-                (format "%c%d" (+ ?a (cdr ep)) (- 8 (car ep))))
-              "-")
-          (lichess-pos-halfmove pos)
-          (lichess-pos-fullmove pos)))
+  (format
+   "FEN preview (%s), side-to-move: %s, perspective: %s, castle: %s, ep: %s, hm: %d, fm: %d\n\n"
+   style
+   (if (eq (lichess-pos-stm pos) 'w)
+       "white"
+     "black")
+   (symbol-name perspective)
+   (lichess-pos-castle pos)
+   (or (when-let ((ep (lichess-pos-ep pos)))
+         (format "%c%d" (+ ?a (cdr ep)) (- 8 (car ep))))
+       "-")
+   (lichess-pos-halfmove pos)
+   (lichess-pos-fullmove pos)))
 
 ;;;###autoload
 (defun lichess-fen-show (fen style &optional perspective)
   "Render FEN in a preview buffer using STYLE and PERSPECTIVE.
 STYLE: \"org\" or \"org+unicode\".
-PERSPECTIVE: 'white, 'black, or 'from-stm (default 'from-stm)."
+PERSPECTIVE: \`white', \`black', or \`from-stm' (default \`from-stm')."
 
-  (interactive
-   (list (read-string "FEN: ")
-         (completing-read "Style: " '("org" "org+unicode") nil t "org+unicode")
-         (let* ((choices '("from-stm" "white" "black")))
-           (completing-read "Perspective: " choices nil t "from-stm"))))
-  (let* ((pos (lichess-chess-parse-fen fen))
+  (interactive (list
+                (read-string "FEN: ")
+                (completing-read "Style: " '("org" "org+unicode")
+                                 nil
+                                 t
+                                 "org+unicode")
+                (let* ((choices '("from-stm" "white" "black")))
+                  (completing-read "Perspective: " choices
+                                   nil
+                                   t
+                                   "from-stm"))))
+  (let* ((pos (lichess-fen-parse fen))
          (buf (get-buffer-create lichess-fen--buf))
          (unicode (string= style "org+unicode"))
-         (persp-raw (cond
-                     ((symbolp perspective) perspective)
-                     ((stringp perspective) (intern perspective))
-                     (t 'from-stm)))
-         (persp (if (eq persp-raw 'from-stm)
-                    (if (eq (lichess-pos-stm pos) 'b) 'black 'white)
-                  persp-raw)))
-    (with-current-buffer buf (lichess-core-mode))
-    (lichess-core-with-buf buf
-      (erase-buffer)
-      (insert (lichess-fen-render-heading pos style persp))
-      (insert (lichess-fen-render-org-table pos unicode persp))
-      (insert "\n"))
-    (pop-to-buffer buf)
-    (when (and (require 'org-table nil t))
-      (with-current-buffer buf
-        (save-excursion
-          (goto-char (point-min))
-          (org-table-align))))))
+         (persp-raw
+          (cond
+           ((symbolp perspective)
+            perspective)
+           ((stringp perspective)
+            (intern perspective))
+           (t
+            'from-stm)))
+         (persp
+          (if (eq persp-raw 'from-stm)
+              (if (eq (lichess-pos-stm pos) 'b)
+                  'black
+                'white)
+            persp-raw)))
+    (with-current-buffer buf
+      (lichess-core-mode))
+    (lichess-core-with-buf
+     buf
+     (erase-buffer)
+     (insert (lichess-fen-render-heading pos style persp))
+     (insert (lichess-fen-render-org-table pos unicode persp))
+     (insert "\n"))
+    (pop-to-buffer buf)))
+
+;;; Move application
+(defun lichess-fen-apply-moves (pos moves-str)
+  "Return a new `lichess-pos' by applying UCI MOVES-STR to POS.
+MOVES-STR is a space-separated string of UCI moves like \"e2e4 e7e5\"."
+  (let ((new-pos (copy-lichess-pos pos))
+        (moves (split-string (or moves-str "") " " t)))
+    ;; Deep copy the board vector of vectors
+    (let ((old-board (lichess-pos-board new-pos))
+          (new-board (make-vector 8 nil)))
+      (dotimes (i 8)
+        (aset new-board i (copy-sequence (aref old-board i))))
+      (setf (lichess-pos-board new-pos) new-board))
+
+    (dolist (m moves)
+      (lichess-fen--apply-uci-move new-pos m))
+    new-pos))
+
+(defun lichess-fen--apply-uci-move (pos uci)
+  "Apply a single UCI move string to POS (modifies POS in place)."
+  (when (>= (length uci) 4)
+    (let* ((f-col (- (aref uci 0) ?a))
+           (f-row (- 8 (- (aref uci 1) ?0)))
+           (t-col (- (aref uci 2) ?a))
+           (t-row (- 8 (- (aref uci 3) ?0)))
+           (board (lichess-pos-board pos))
+           (piece (aref (aref board f-row) f-col))
+           (is-white (eq (lichess-pos-stm pos) 'w)))
+
+      (when piece
+        ;; 1. Handle Castling
+        (when (and (memq piece '(?K ?k)) (= (abs (- f-col t-col)) 2))
+          (let ((rank-row
+                 (if is-white
+                     7
+                   0)))
+            (cond
+             ((= t-col 6) ;; Kingside
+              (let ((rook (aref (aref board rank-row) 7)))
+                (aset (aref board rank-row) 5 rook)
+                (aset (aref board rank-row) 7 ?.)))
+             ((= t-col 2) ;; Queenside
+              (let ((rook (aref (aref board rank-row) 0)))
+                (aset (aref board rank-row) 3 rook)
+                (aset (aref board rank-row) 0 ?.))))))
+
+        ;; 2. Handle En Passant
+        (when (and (memq piece '(?P ?p))
+                   (/= f-col t-col)
+                   (eq (aref (aref board t-row) t-col) ?.))
+          (aset (aref board f-row) t-col ?.))
+
+        ;; 3. Handle Promotion
+        (when (= (length uci) 5)
+          (let ((pchar (aref uci 4)))
+            (setq piece
+                  (if is-white
+                      (upcase pchar)
+                    (downcase pchar)))))
+
+        ;; 4. Move Piece
+        (aset (aref board t-row) t-col piece)
+        (aset (aref board f-row) f-col ?.)
+
+        ;; 5. Update side to move
+        (setf (lichess-pos-stm pos)
+              (if is-white
+                  'b
+                'w))
+
+        (unless is-white
+          (setf (lichess-pos-fullmove pos)
+                (1+ (lichess-pos-fullmove pos))))))))
+
+(defun lichess-fen-pos->fen (pos)
+  "Convert POS struct back into a FEN string."
+  (let* ((board (lichess-pos-board pos))
+         (rows '()))
+    (dotimes (r 8)
+      (let ((rowv (aref board r))
+            (rowstr "")
+            (empty 0))
+        (dotimes (c 8)
+          (let ((p (aref rowv c)))
+            (if (eq p ?.)
+                (cl-incf empty)
+              (progn
+                (when (> empty 0)
+                  (setq rowstr
+                        (concat rowstr (number-to-string empty)))
+                  (setq empty 0))
+                (setq rowstr (concat rowstr (string p)))))))
+        (when (> empty 0)
+          (setq rowstr (concat rowstr (number-to-string empty))))
+        (push rowstr rows)))
+    (concat
+     (string-join (reverse rows) "/")
+     " "
+     (if (eq (lichess-pos-stm pos) 'w)
+         "w"
+       "b")
+     " "
+     (or (lichess-pos-castle pos) "-")
+     " "
+     "-" ;; simplified ep
+     " "
+     (number-to-string (lichess-pos-halfmove pos))
+     " "
+     (number-to-string (lichess-pos-fullmove pos)))))
 
 (provide 'lichess-fen)
 ;;; lichess-fen.el ends here

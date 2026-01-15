@@ -1,6 +1,9 @@
 ;;; lichess-util.el --- Util functions for Lichess -*- lexical-binding: t; -*-
 ;;
 ;; Copyright (C) 2025  Alexandr Timchenko
+;; URL: https://github.com/tmythicator/Lichess.el
+;; Version: 0.1
+;; Package-Requires: ((emacs "27.1"))
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 ;; See LICENSE for details.
 ;;
@@ -24,29 +27,46 @@
   "Safe get from OBJ (alist or hash-table). KEY may be symbol or string."
   (cond
    ((hash-table-p obj)
-    (let ((str (if (symbolp key) (symbol-name key) key))
-          (sym (if (stringp key) (intern key) key)))
-      (or (gethash sym obj)
-          (gethash str obj))))
+    (let ((str
+           (if (symbolp key)
+               (symbol-name key)
+             key))
+          (sym
+           (if (stringp key)
+               (intern key)
+             key)))
+      (or (gethash sym obj) (gethash str obj))))
    ((consp obj)
-    (let ((str (if (symbolp key) (symbol-name key) key))
-          (sym (if (stringp key) (intern key) key)))
+    (let ((str
+           (if (symbolp key)
+               (symbol-name key)
+             key))
+          (sym
+           (if (stringp key)
+               (intern key)
+             key)))
       (or (alist-get sym obj nil nil #'eq)
           (alist-get str obj nil nil #'string=))))
-   (t nil)))
+   (t
+    nil)))
 
 (defun lichess-util--fmt-player (name title rating)
-  "Return compact 'TITLE NAME (RATING)' or 'Anonymous'."
+  "Return compact \`TITLE' \`NAME' (RATING) or \`Anonymous'."
   (if name
       (string-trim
        (format "%s%s%s"
                (or title "")
-               (if title " " "")
-               (if rating (format "%s (%s)" name rating) name)))
+               (if title
+                   " "
+                 "")
+               (if rating
+                   (format "%s (%s)" name rating)
+                 name)))
     "Anonymous"))
 
 (defun lichess-util--insert-propertized-line (text id)
-  "Insert TEXT, ensure trailing \\n, add props for the whole line, return BOL marker."
+  "Insert TEXT, ensure trailing \\n, add props for the whole line.
+Return BOL marker."
   (let ((beg (point)))
     (insert text)
     (unless (and (> (length text) 0)
@@ -54,10 +74,15 @@
       (insert "\n"))
     (let ((bol beg)
           (eol (line-end-position 0)))
-      (add-text-properties bol (min (point-max) (1+ eol))
-                           (list 'lichess-game-id id
-                                 'mouse-face 'highlight
-                                 'help-echo "RET: open in browser"))
+      (add-text-properties
+       bol (min (point-max) (1+ eol))
+       (list
+        'lichess-game-id
+        id
+        'mouse-face
+        'highlight
+        'help-echo
+        "RET: open in browser"))
       (copy-marker bol nil))))
 
 ;; Formatted Lichess TV string
@@ -68,10 +93,12 @@
          (b (lichess-util--aget players 'black))
          (wu (lichess-util--aget w 'user))
          (bu (lichess-util--aget b 'user))
-         (w-name (or (lichess-util--aget wu 'name)
-                     (lichess-util--aget w 'userId)))
-         (b-name (or (lichess-util--aget bu 'name)
-                     (lichess-util--aget b 'userId)))
+         (w-name
+          (or (lichess-util--aget wu 'name)
+              (lichess-util--aget w 'userId)))
+         (b-name
+          (or (lichess-util--aget bu 'name)
+              (lichess-util--aget b 'userId)))
          (w-title (lichess-util--aget wu 'title))
          (b-title (lichess-util--aget bu 'title))
          (w-rating (lichess-util--aget w 'rating))
@@ -84,26 +111,41 @@
   "Fetch cloud evaluation for a FEN with rate-limiting.
 Passes the result string to CALLBACK."
   (let* ((current-time (float-time))
-         (scheduled-time (max current-time lichess-util--next-eval-time)))
-    (setq lichess-util--next-eval-time (+ scheduled-time lichess-util-eval-delay))
+         (scheduled-time
+          (max current-time lichess-util--next-eval-time)))
+    (setq lichess-util--next-eval-time
+          (+ scheduled-time lichess-util-eval-delay))
     (run-at-time (- scheduled-time current-time) nil
                  (lambda (fen callback)
-                   (let ((url (format "/api/cloud-eval?fen=%s" (url-hexify-string fen))))
+                   (let ((url
+                          (format "/api/cloud-eval?fen=%s"
+                                  (url-hexify-string fen))))
                      (lichess-http-json
                       url
                       (lambda (res)
                         (message "FEN: %s.\n eval RES: %s" fen res)
-                        (when (and (eq (car res) 200) (functionp callback))
+                        (when (and (eq (car res) 200)
+                                   (functionp callback))
                           (let* ((data (cdr res))
                                  (pvs (lichess-util--aget data 'pvs))
                                  (best-pv (and pvs (car pvs)))
-                                 (cp (and best-pv (lichess-util--aget best-pv 'cp)))
-                                 (mate (and best-pv (lichess-util--aget best-pv 'mate)))
+                                 (cp
+                                  (and best-pv
+                                       (lichess-util--aget
+                                        best-pv 'cp)))
+                                 (mate
+                                  (and best-pv
+                                       (lichess-util--aget
+                                        best-pv 'mate)))
                                  (eval-str
                                   (cond
-                                   (mate (format "M%d" mate))
-                                   (cp (format "%+.2f" (/ (float cp) 100.0)))
-                                   (t nil))))
+                                   (mate
+                                    (format "M%d" mate))
+                                   (cp
+                                    (format "%+.2f"
+                                            (/ (float cp) 100.0)))
+                                   (t
+                                    nil))))
                             (when eval-str
                               (message "eval: %s" eval-str)
                               (funcall callback eval-str))))))))
