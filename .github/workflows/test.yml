@@ -32,9 +32,7 @@ jobs:
         run: make compile
 
       - name: Check Formatting
-        run: |
-          pip install elisp-autofmt
-          elisp-autofmt --check *.el
+        run: make format-check
 
       - name: Lint
         run: |
