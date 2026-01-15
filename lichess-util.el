@@ -24,7 +24,7 @@
   "The earliest time the next cloud-eval request can be sent.")
 
 (defun lichess-util--aget (obj key)
-  "Safe get from OBJ (alist or hash-table). KEY may be symbol or string."
+  "Safe get from OBJ (alist or hash-table).  KEY may be symbol or string."
   (cond
    ((hash-table-p obj)
     (let ((str
@@ -51,7 +51,7 @@
     nil)))
 
 (defun lichess-util--fmt-player (name title rating)
-  "Return compact \`TITLE' \`NAME' (RATING) or \`Anonymous'."
+  "Return compact TITLE NAME (RATING) or `Anonymous'."
   (if name
       (string-trim
        (format "%s%s%s"
@@ -66,7 +66,7 @@
 
 (defun lichess-util--insert-propertized-line (text id)
   "Insert TEXT, ensure trailing \\n, add props for the whole line.
-Return BOL marker."
+ID is the game ID.  Return BOL marker."
   (let ((beg (point)))
     (insert text)
     (unless (and (> (length text) 0)
@@ -87,7 +87,7 @@ Return BOL marker."
 
 ;; Formatted Lichess TV string
 (defun lichess-util--game->vs (game)
-  "Build \"White vs Black\" string from /api/game JSON alist."
+  "Build \"White vs Black\" string from /api/game JSON GAME."
   (let* ((players (lichess-util--aget game 'players))
          (w (lichess-util--aget players 'white))
          (b (lichess-util--aget players 'black))

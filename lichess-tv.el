@@ -47,7 +47,7 @@
 
 ;;;###autoload
 (defun lichess-tv ()
-  "Show current Lichess TV channels; lines ar e clickable (RET)."
+  "Show current Lichess TV channels; lines are clickable (RET)."
   (interactive)
   (let ((buf (get-buffer-create lichess-tv--buf)))
     (with-current-buffer buf
@@ -67,7 +67,7 @@
       (message "No game ID found on this line."))))
 
 (defun lichess-tv--update-line (pos text &optional id)
-  "Replace line at POS with TEXT. If POS is stale, find the line by game ID."
+  "Replace line at POS with TEXT.  If POS is stale, find the line by ID."
   (let ((buf (get-buffer lichess-tv--buf)))
     (when (buffer-live-p buf)
       (with-current-buffer buf
@@ -106,7 +106,8 @@
 
 
 (defun lichess-tv--fetch-game (id chan-name marker)
-  "Throttled fetch of /api/game/{id} and update the line at MARKER."
+  "Throttled fetch of /api/game/{ID} and update the line at MARKER.
+CHAN-NAME is the channel label."
   (let* ((now (float-time))
          (at (max now lichess-tv--next-at)))
     (setq lichess-tv--next-at (+ at lichess-tv-fetch-delay))
@@ -147,7 +148,7 @@
          (lichess-tv--fetch-game id chan-name marker))))))
 
 (defun lichess-tv--handle-channels (res)
-  "Process /api/tv/channels response."
+  "Process /api/tv/channels RES."
   (if (/= (car res) 200)
       (lichess-core-with-buf
        (get-buffer lichess-tv--buf)

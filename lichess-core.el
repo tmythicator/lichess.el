@@ -30,7 +30,7 @@
 
 (defcustom lichess-core-chess-font nil
   "Font family for Unicode chess pieces in the GUI.
-If nil, use `fixed-pitch' family. Example: \"DejaVu Sans\"."
+If nil, use `fixed-pitch' family.  Example: \"DejaVu Sans\"."
   :set
   (lambda (symbol value)
     (set-default symbol value)

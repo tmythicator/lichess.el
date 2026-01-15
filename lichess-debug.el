@@ -25,7 +25,8 @@
   "Default game ID used for debugging.")
 
 (defun lichess-debug--log (fmt &rest args)
-  "Append FMT line to `lichess-debug-diagnose-buf' safely."
+  "Append FMT line to `lichess-debug-diagnose-buf' safely.
+ARGS are passed to `format`."
   (let ((buf (get-buffer-create lichess-debug-diagnose-buf)))
     (with-current-buffer buf
       (lichess-core-mode))

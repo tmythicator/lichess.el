@@ -32,8 +32,8 @@
     ""))
 
 (defun lichess-http--auth-headers (&optional extra accept)
-  "Return an alist of headers. Adds Authorization when \`lichess-token' is set.
-EXTRA (alist) is appended. ACCEPT, when non-nil, sets Accept header."
+  "Return an alist of headers.  Add Authorization when `lichess-token' is set.
+EXTRA (alist) is appended.  ACCEPT, when non-nil, sets Accept header."
   (append
    (when (and (boundp 'lichess-token)
               (stringp lichess-token)
@@ -58,8 +58,8 @@ URL-OR-ENDPOINT can be absolute or like \"/api/tv/channels\".
 
 PLIST keys:
   :method   HTTP method string (default \"GET\")
-  :headers  Alist of headers to add 
-            (Authorization is auto if \`lichess-token' set)
+  :headers  Alist of headers to add
+            (Authorization is auto if `lichess-token' set)
   :accept   Accept header (e.g., \"application/json\")
   :data     Request body string (UTF-8)
   :parse    One of: \='json (default), \='raw (return raw body string)
@@ -124,7 +124,7 @@ HEADERS is an alist to add; Authorization is added automatically if available."
 (cl-defstruct lichess-http-stream proc buf seen-headers chunk-tail)
 
 (defun lichess-http--chunk-size-line-p (line)
-  "Non-nil if LINE looks like an HTTP/1.1 chunk-size marker."
+  "Non-nil if LINE look like an HTTP/1.1 chunk-size marker."
   (or (string-match-p "\\`[0-9A-Fa-f]+\\(?:;.*\\)?\\'" line)
       (string-match-p "\\`[0-9]+\\'" line)))
 

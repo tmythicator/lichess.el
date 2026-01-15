@@ -51,7 +51,9 @@
     (lichess-ai--start-game level color limit increment)))
 
 (defun lichess-ai--start-game (level color limit increment)
-  "Actually send the POST request to Lichess."
+  "Send the POST request to Lichess to start a game.
+LEVEL is the AI strength.  COLOR is the player color.
+LIMIT and INCREMENT define the time control."
   (message "Challenging Lichess AI level %d..." level)
   (let* ((data
           (format

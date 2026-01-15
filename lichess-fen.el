@@ -21,7 +21,7 @@
 (defvar lichess-fen--buf "*Lichess FEN*")
 
 (cl-defstruct
- lichess-pos "Internal chess position. Row 0 = rank 8 (top)."
+ lichess-pos "Internal chess position.  Row 0 = rank 8 (top)."
  board ;; vector[8] of vector[8] chars
  stm ;; 'w or 'b
  castle ;; string like "KQkq" or "-"
@@ -95,7 +95,8 @@ Signals \`user-error' on malformed input."
 
 (defun lichess-fen--parse-ep (ep-s)
   "Parse en passant field like \"e3\" from FEN.
-Return (row . col) or nil. Valid ranks are only 3 and 6."
+Return (row . col) or nil.  Valid ranks are only 3 and 6.
+EP-S is the en passant target string."
   (when (and (stringp ep-s) (not (string= ep-s "-")))
     (unless (string-match-p "\\`[a-hA-H][36]\\'" ep-s)
       (user-error "Invalid en passant square: %S" ep-s))
@@ -127,7 +128,8 @@ Return (row . col) or nil. Valid ranks are only 3 and 6."
 (defun lichess-fen-render-board
     (pos &optional unicode perspective eval-str)
   "Return a board string for POS.
-If EVAL-STR is non-nil, render a vertical evaluation bar next to the board."
+If EVAL-STR is non-nil, render a vertical evaluation bar next to the board.
+UNICODE and PERSPECTIVE control rendering style."
   (let* ((board-lines
           ;; First, generate the board as a list of strings
           (let* ((b (lichess-pos-board pos))
@@ -204,7 +206,9 @@ If EVAL-STR is non-nil, render a vertical evaluation bar next to the board."
 
 (defun lichess-fen--render-evaluation-bar
     (eval-str height perspective)
-  "Return a list of strings representing a vertical evaluation bar."
+  "Return a list of strings representing a vertical evaluation bar.
+EVAL-STR is the evaluation.  HEIGHT is the bar height.
+PERSPECTIVE determines the view."
   (let* ((bar (make-vector height " "))
          (advantage-char "█")
          (disadvantage-char "░")

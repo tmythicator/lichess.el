@@ -26,6 +26,7 @@
   "Current `lichess-http-stream' for a game NDJSON, or nil when not running.")
 
 (defun lichess-game--stream-buffer-name (id)
+  "Return buffer name for game ID."
   (format "*Lichess Game Stream: %s*" id))
 
 (defvar-local lichess-game--fen-history nil
@@ -35,9 +36,9 @@
 (defvar-local lichess-game--current-idx nil
   "Buffer-local index for `lichess-game--fen-history'.")
 (defvar-local lichess-game--live-mode t
-  "Buffer-local flag. When non-nil, board updates automatically.")
+  "Buffer-local flag.  When non-nil, board updates automatically.")
 (defvar-local lichess-game--perspective 'white
-  "The current board perspective. Can be \`white', \`black' or \`auto'.")
+  "The current board perspective.  Can be \`white', \`black' or \`auto'.")
 (defvar-local lichess-game--id nil
   "The ID of the game being watched/played in this buffer.")
 (defvar-local lichess-game--initial-pos nil
@@ -66,7 +67,7 @@
     (pos perspective &optional eval-str pos-info)
   "Render the complete game view for POS in the current buffer.
 
-This function is the main renderer. It clears the buffer and draws
+This function is the main renderer.  It clears the buffer and draws
 the header, the board (with an optional evaluation bar), and any
 additional position information.
 
@@ -142,13 +143,13 @@ ARGUMENTS:
       (setq lichess-game--live-mode t))))
 
 (defun lichess-game--extract-fen (obj)
-  "Extract FEN from an NDJSON event (from obj.fen or obj.state.fen)."
+  "Extract FEN from an NDJSON event (from OBJ.fen or OBJ.state.fen)."
   (or (lichess-util--aget obj 'fen)
       (let ((st (lichess-util--aget obj 'state)))
         (and (consp st) (lichess-util--aget st 'fen)))))
 
 (defun lichess-game--fen-history-vpush (fen)
-  "Append FEN to the lichess-game--fen-history vector."
+  "Append FEN to the `lichess-game--fen-history' vector."
   (let* ((len (length lichess-game--fen-history))
          (last
           (and (> len 0) (aref lichess-game--fen-history (1- len)))))
@@ -167,7 +168,7 @@ ARGUMENTS:
   (setq-local lichess-game--perspective 'white))
 
 (defun lichess-game--fmt-player-name (user-obj)
-  "Extract a readable name from a Lichess player/user object."
+  "Extract a readable name from a Lichess player/user USER-OBJ."
   (or (lichess-util--aget user-obj 'name)
       (lichess-util--aget user-obj 'username)
       (lichess-util--aget user-obj 'id)
@@ -178,7 +179,8 @@ ARGUMENTS:
       "Anonymous"))
 
 (defun lichess-game--stream-on-open (id buf msg-prefix _proc _buf)
-  "Callback for NDJSON stream open."
+  "Callback for NDJSON stream open.
+ID is the game, BUF is the buffer, MSG-PREFIX for status."
   (lichess-core-with-buf
    buf
    (unless (eq major-mode 'lichess-game-buffer-mode)
@@ -189,7 +191,8 @@ ARGUMENTS:
    (insert (format "%s %s…\n" msg-prefix id))))
 
 (defun lichess-game--stream-on-event (buf obj)
-  "Callback for spectator NDJSON stream events (contains FEN)."
+  "Callback for spectator NDJSON stream events (contain FEN).
+BUF is the target buffer, OBJ is the parsed JSON event."
   (lichess-core-with-buf
    buf
    (let ((fen (lichess-game--extract-fen obj))
@@ -215,7 +218,8 @@ ARGUMENTS:
             pos lichess-game--perspective)))))))
 
 (defun lichess-game--board-on-event (buf obj)
-  "Callback for Board API stream events."
+  "Callback for Board API stream events.
+BUF is the target buffer, OBJ is the parsed JSON event."
   (lichess-core-with-buf
    buf
    (let* ((type (lichess-util--aget obj 'type))
@@ -250,7 +254,8 @@ ARGUMENTS:
             current-pos lichess-game--perspective)))))))
 
 (defun lichess-game--stream-on-close (buf msg-prefix _proc msg)
-  "Callback for NDJSON stream close."
+  "Callback for NDJSON stream close.
+BUF, MSG-PREFIX, and MSG describe the event."
   (when (buffer-live-p buf)
     (lichess-core-with-buf
      buf (goto-char (point-max))
@@ -284,8 +289,8 @@ ARGUMENTS:
 
 ;;;###autoload
 (defun lichess-game-play (id)
-  "Watch a game you are playing using the Board API for zero-delay updates.
-This uses /api/board/game/stream/{id} which has no delay."
+  "Watch a game you are playing using the Board API for zero-delay update.
+This uses /api/board/game/stream/{ID} which has no delay."
   (interactive "sGame ID: ")
   (let* ((buf-name (lichess-game--stream-buffer-name id))
          (buf (get-buffer-create buf-name)))
@@ -307,7 +312,7 @@ This uses /api/board/game/stream/{id} which has no delay."
 
 ;;;###autoload
 (defun lichess-game-evaluate-history ()
-  "Fetch cloud evaluations for all moves in the current game history."
+  "Fetch cloud evaluations for all positions in the current game history."
   (interactive)
   (let ((game-buf (current-buffer)))
     (message "Batch fetching evaluations for %d moves..."

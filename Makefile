@@ -1,4 +1,4 @@
-.PHONY: test compile format lint clean
+.PHONY: test compile format lint checkdoc clean
 
 EMACS ?= emacs
 
@@ -39,6 +39,24 @@ lint:
 		--eval "(unless (package-installed-p 'package-lint) (package-install 'package-lint))" \
 		--eval "(require 'package-lint)" \
 		-f package-lint-batch-and-exit $(ELS)
+
+checkdoc:
+	$(EMACS) -Q -batch \
+		--eval "(require 'checkdoc)" \
+		--eval "(setq checkdoc-force-docstrings-flag nil)" \
+		--eval "(let ((files (directory-files \".\" t \"\\\\.el$$\")) (err 0)) \
+			(dolist (file files) \
+				(when (and (not (string-match-p \"test/\" file)) \
+						   (not (string-match-p \"secrets\" file)) \
+						   (not (string-match-p \".dir-locals\" file))) \
+					(checkdoc-file file) \
+					(let ((buf (get-buffer \"*checkdoc-messages*\"))) \
+						(when buf \
+							(with-current-buffer buf \
+								(when (> (buffer-size) 0) \
+									(princ (format \"\nCheckdoc output for %s:\n%s\" file (buffer-string))) \
+									(setq err 1))))))) \
+			(kill-emacs err))"
 
 clean:
 	rm -f *.elc test/*.elc
