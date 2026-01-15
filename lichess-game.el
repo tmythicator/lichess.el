@@ -54,9 +54,8 @@
     (define-key m (kbd "v") #'lichess-game-set-perspective)
     (define-key m (kbd "l") #'lichess-game-evaluate-history)
     (define-key m (kbd "m") #'lichess-game-move)
+    (define-key m (kbd "R") #'lichess-game-resign)
     m))
-(define-key
- lichess-game-buffer-mode-map (kbd "m") #'lichess-game-move)
 
 (define-derived-mode
  lichess-game-buffer-mode
@@ -458,6 +457,27 @@ MOVE should be in UCI format (e.g., e2e4)."
                     status
                     (or (lichess-util--aget json 'error) "")))))
      :method "POST")))
+
+;;;###autoload
+(defun lichess-game-resign ()
+  "Resign the current game."
+  (interactive)
+  (unless lichess-game--id
+    (error "No game ID found for this buffer"))
+  (when (yes-or-no-p "Really resign this game? ")
+    (let ((game-id lichess-game--id))
+      (message "Resigning game %s..." game-id)
+      (lichess-http-request
+       (format "/api/board/game/%s/resign" game-id)
+       (lambda (res)
+         (let ((status (car res))
+               (json (cdr res)))
+           (if (= status 200)
+               (message "Game resigned.")
+             (message "Error resigning: %d %s"
+                      status
+                      (or (lichess-util--aget json 'error) "")))))
+       :method "POST"))))
 
 (provide 'lichess-game)
 ;;; lichess-game.el ends here
