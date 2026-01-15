@@ -21,6 +21,7 @@
 (require 'lichess-core)
 (require 'lichess-util)
 (require 'lichess-fen)
+(require 'lichess-board)
 
 (defvar lichess-game--stream nil
   "Current `lichess-http-stream' for a game NDJSON, or nil when not running.")
@@ -78,9 +79,9 @@ ARGUMENTS:
 - POS-INFO: An optional string with context (e.g., \"\n\nPosition 5/42\")."
   (let ((inhibit-read-only t))
     (erase-buffer)
-    (insert (lichess-fen-render-heading pos "unicode" perspective))
+    (insert (lichess-board-draw-heading pos perspective))
     (let ((start (point)))
-      (insert (lichess-fen-render-board pos t perspective eval-str))
+      (insert (lichess-board-draw pos perspective eval-str))
       (add-text-properties
        start (point) '(face lichess-core-board-face)))
     (when pos-info

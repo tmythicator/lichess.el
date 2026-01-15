@@ -10,6 +10,8 @@
 (require 'lichess-fen)
 (require 'lichess-game)
 (require 'lichess-core)
+(require 'lichess-board)
+(require 'lichess-board-tui)
 
 ;;; lichess-util.el tests
 
@@ -94,10 +96,10 @@
   (should-error (lichess-fen--rows->board '("rnbqkbnr" "pppppppp" "8" "8" "8" "8" "PPPPPPPP" "RNBQKBNR2")) :type 'user-error)) ; Row overflow
 
 (ert-deftest lichess-fen-piece-to-unicode-test ()
-  "Test `lichess-fen--piece->unicode`."
-  (should (equal (lichess-fen--piece->unicode ?K) "♔"))
-  (should (equal (lichess-fen--piece->unicode ?k) "♚"))
-  (should (equal (lichess-fen--piece->unicode ?.) "·")))
+  "Test `lichess-board-tui--piece->unicode`."
+  (should (equal (lichess-board-tui--piece->unicode ?K) "♔"))
+  (should (equal (lichess-board-tui--piece->unicode ?k) "♚"))
+  (should (equal (lichess-board-tui--piece->unicode ?.) "·")))
 
 (defun lichess-test--verify-alignment (rendered)
   "Verify that all separators '|' in RENDERED are vertically aligned.
@@ -121,10 +123,10 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
         (forward-line 1)))))
 
 (ert-deftest lichess-fen-render-board-test ()
-  "Test `lichess-fen-render-board` output and alignment."
+  "Test `lichess-board-tui-draw` output and alignment."
   (let* ((fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
          (pos (lichess-fen-parse fen))
-         (render (lichess-fen-render-board pos nil 'white))
+         (render (lichess-board-tui-draw pos "ascii" 'white))
          (expected (concat "|r|n|b|q|k|b|n|r|8\n"
                            "|p|p|p|p|p|p|p|p|7\n"
                            "|.|.|.|.|.|.|.|.|6\n"
@@ -143,10 +145,10 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
     (should (string-match "|R|N|B|Q|K|B|N|R|1" render))))
 
 (ert-deftest lichess-fen-render-board-unicode-test ()
-  "Test `lichess-fen-render-board` with Unicode pieces and alignment."
+  "Test `lichess-board-tui-draw` with Unicode pieces and alignment."
   (let* ((fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
          (pos (lichess-fen-parse fen))
-         (render (lichess-fen-render-board pos t 'white))
+         (render (lichess-board-tui-draw pos "unicode" 'white))
          (expected (concat "|♜|♞|♝|♛|♚|♝|♞|♜|8\n"
                            "|♟|♟|♟|♟|♟|♟|♟|♟|7\n"
                            "|·|·|·|·|·|·|·|·|6\n"
@@ -165,10 +167,10 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
     (should (string-match "|♖|♘|♗|♕|♔|♗|♘|♖|1" render))))
 
 (ert-deftest lichess-fen-render-board-eval-test ()
-  "Test `lichess-fen-render-board` with evaluation bar."
+  "Test `lichess-board-tui-draw` with evaluation bar."
   (let* ((fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
          (pos (lichess-fen-parse fen))
-         (render (lichess-fen-render-board pos nil 'white "0.0")))
+         (render (lichess-board-tui-draw pos "ascii" 'white "0.0")))
     ;; Check if "Eval" header and evaluation blocks are present
     (should (string-match "Eval" render))
     (should (string-match "░" render))
@@ -185,7 +187,8 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
 (ert-deftest lichess-game-render-face-test ()
   "Verify that `lichess-game--render-pos` applies `lichess-core-board-face`."
   (let* ((fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-         (pos (lichess-fen-parse fen)))
+         (pos (lichess-fen-parse fen))
+         (lichess-board-style "ascii"))
     (with-temp-buffer
       (lichess-game--render-pos pos 'white)
       (goto-char (point-min))
@@ -195,6 +198,32 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
       ;; Verify face at this point
       (let ((face (get-text-property (point) 'face)))
         (should (eq face 'lichess-core-board-face))))))
+
+;;; Dispatch tests
+
+(ert-deftest lichess-board-dispatch-test ()
+  "Test that `lichess-board-draw` dispatches correctly."
+  (let ((pos (make-lichess-pos)))
+    ;; Case 1: Style "gui", GUI available -> calls GUI
+    (cl-letf (((symbol-function 'lichess-board-gui-available-p) (lambda () t))
+              ((symbol-function 'lichess-board-gui-draw) (lambda (_ _) "GUI"))
+              ((symbol-function 'lichess-board-tui-draw) (lambda (_ _ _ _) "TUI")))
+      (let ((lichess-board-style "gui"))
+        (should (equal (lichess-board-draw pos) "GUI"))))
+
+    ;; Case 2: Style "gui", GUI NOT available -> Fallback to TUI (Unicode)
+    (cl-letf (((symbol-function 'lichess-board-gui-available-p) (lambda () nil))
+              ((symbol-function 'lichess-board-gui-draw) (lambda (_ _) "GUI"))
+              ((symbol-function 'lichess-board-tui-draw) (lambda (_ _ _ _) "TUI")))
+      (let ((lichess-board-style "gui"))
+        (should (equal (lichess-board-draw pos) "TUI"))))
+
+    ;; Case 3: Style "ascii" -> calls TUI
+    (cl-letf (((symbol-function 'lichess-board-gui-available-p) (lambda () t))
+              ((symbol-function 'lichess-board-gui-draw) (lambda (_ _) "GUI"))
+              ((symbol-function 'lichess-board-tui-draw) (lambda (_ _ _ _) "TUI")))
+      (let ((lichess-board-style "ascii"))
+        (should (equal (lichess-board-draw pos) "TUI"))))))
 
 (provide 'lichess-test)
 ;;; lichess-test.el ends here

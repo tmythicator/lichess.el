@@ -38,6 +38,9 @@
 (require 'lichess-game)
 (require 'lichess-ai)
 (require 'lichess-fen)
+(require 'lichess-board)
+(require 'lichess-board-tui)
+
 
 (defgroup lichess nil
   "Lichess client."
