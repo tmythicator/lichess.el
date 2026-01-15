@@ -80,11 +80,11 @@ ARGUMENTS:
 - POS-INFO: An optional string with context (e.g., \"\n\nPosition 5/42\")."
   (let ((inhibit-read-only t))
     (erase-buffer)
-    (insert
-     (lichess-fen-render-heading pos "unicode" perspective))
+    (insert (lichess-fen-render-heading pos "unicode" perspective))
     (let ((start (point)))
       (insert (lichess-fen-render-board pos t perspective eval-str))
-      (add-text-properties start (point) '(face lichess-board-face)))
+      (add-text-properties
+       start (point) '(face lichess-core-board-face)))
     (when pos-info
       (insert (format "\n\n%s" pos-info)))
     (goto-char (point-min))))
@@ -95,15 +95,22 @@ ARGUMENTS:
 FEN is the position to render.
 EVAL-STR is an optional evaluation (e.g., \"+1.2\" or \"M2\").
 PERSPECTIVE is the board orientation ('white or 'black)."
-  (interactive (list
-                (read-string "FEN: " "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-                (read-string "Eval (optional): ")
-                (intern (completing-read "Perspective: " '("white" "black") nil t "white"))))
+  (interactive
+   (list
+    (read-string
+     "FEN: "
+     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+    (read-string "Eval (optional): ")
+    (intern
+     (completing-read "Perspective: " '("white" "black")
+                      nil t "white"))))
   (let ((buf (get-buffer-create "*Lichess Game Preview*"))
         (pos (lichess-fen-parse fen)))
     (with-current-buffer buf
       (lichess-game-buffer-mode)
-      (lichess-game--render-pos pos perspective eval-str "Preview Mode"))
+      (lichess-game--render-pos pos perspective
+                                eval-str
+                                "Preview Mode"))
     (pop-to-buffer buf)))
 
 (defun lichess-game-history-previous ()

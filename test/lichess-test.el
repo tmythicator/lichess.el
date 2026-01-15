@@ -175,14 +175,15 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
     (should (string-match "█" render))))
 
 (ert-deftest lichess-face-definition-test ()
-  "Verify `lichess-board-face` definition."
-  (should (facep 'lichess-board-face))
-  (let ((inherit (face-attribute 'lichess-board-face :inherit)))
-    (should (or (eq inherit 'fixed-pitch)
-                (and (listp inherit) (memq 'fixed-pitch inherit))))))
+  "Test that `lichess-core-board-face' is defined and inherits from `fixed-pitch'."
+  (should (facep 'lichess-core-board-face))
+  (let ((inherit (face-attribute 'lichess-core-board-face :inherit)))
+    (should (if (listp inherit)
+                (memq 'fixed-pitch inherit)
+              (eq 'fixed-pitch inherit)))))
 
 (ert-deftest lichess-game-render-face-test ()
-  "Verify that `lichess-game--render-pos` applies `lichess-board-face`."
+  "Verify that `lichess-game--render-pos` applies `lichess-core-board-face`."
   (let* ((fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
          (pos (lichess-fen-parse fen)))
     (with-temp-buffer
@@ -192,7 +193,8 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
       (search-forward "|")
       (backward-char)
       ;; Verify face at this point
-      (should (eq (get-text-property (point) 'face) 'lichess-board-face)))))
+      (let ((face (get-text-property (point) 'face)))
+        (should (eq face 'lichess-core-board-face))))))
 
 (provide 'lichess-test)
 ;;; lichess-test.el ends here

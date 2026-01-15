@@ -179,11 +179,11 @@ If EVAL-STR is non-nil, render a vertical evaluation bar next to the board."
          (board-rows (seq-subseq board-lines 0 8))
          (sep (nth 8 board-lines))
          (header (nth 9 board-lines)))
- 
+
     (if (or (not eval-str) (string= eval-str "..."))
         ;; If no eval-str, just return the board as a single string.
         (string-join (append board-rows (list sep header)) "\n")
- 
+
       ;; If eval-str exists, stitch the bar to the right of the board.
       (let* ((bar-lines
               (lichess-fen--render-evaluation-bar
@@ -195,7 +195,7 @@ If EVAL-STR is non-nil, render a vertical evaluation bar next to the board."
         (dotimes (i 8)
           (push (format "%s  %s" (nth i board-rows) (nth i bar-body))
                 stitched-rows))
- 
+
         (string-join (append
                       (reverse stitched-rows)
                       (list sep (format "%s  %s" header bar-header)))
@@ -243,13 +243,24 @@ STYLE is \"ascii\" or \"unicode\"."
                   'black
                 'white)
             perspective))
-         (stm (if (eq (lichess-pos-stm pos) 'w) "White" "Black"))
+         (stm
+          (if (eq (lichess-pos-stm pos) 'w)
+              "White"
+            "Black"))
          (castle (or (lichess-pos-castle pos) "-"))
          (ep (or (lichess-pos-ep pos) "-"))
          (full (lichess-pos-fullmove pos))
-         (tag (if (string= style "unicode") "Unicode" "ASCII")))
+         (tag
+          (if (string= style "unicode")
+              "Unicode"
+            "ASCII")))
     (format "* %s moves (Castle: %s, EP: %s, Full: %d) [%s, %s]\n"
-            stm castle ep full perspective tag)))
+            stm
+            castle
+            ep
+            full
+            perspective
+            tag)))
 
 ;;;###autoload
 (defun lichess-fen-show (fen style &optional perspective)
@@ -293,7 +304,8 @@ PERSPECTIVE: \`white', \`black', or \`from-stm' (default \`from-stm')."
      (insert (lichess-fen-render-heading pos style persp))
      (let ((start (point)))
        (insert (lichess-fen-render-board pos unicode persp))
-       (add-text-properties start (point) '(face lichess-board-face)))
+       (add-text-properties
+        start (point) '(face lichess-core-board-face)))
      (insert "\n"))
     (pop-to-buffer buf)))
 
