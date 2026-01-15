@@ -41,4 +41,4 @@ lint:
 		-f package-lint-batch-and-exit $(ELS)
 
 clean:
-	rm -f *.elc
+	rm -f *.elc test/*.elc
