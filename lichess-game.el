@@ -55,6 +55,7 @@
     (define-key m (kbd "l") #'lichess-game-evaluate-history)
     (define-key m (kbd "m") #'lichess-game-move)
     (define-key m (kbd "R") #'lichess-game-resign)
+    (define-key m (kbd "D") #'lichess-game-draw)
     m))
 
 (define-derived-mode
@@ -475,6 +476,27 @@ MOVE should be in UCI format (e.g., e2e4)."
            (if (= status 200)
                (message "Game resigned.")
              (message "Error resigning: %d %s"
+                      status
+                      (or (lichess-util--aget json 'error) "")))))
+       :method "POST"))))
+
+;;;###autoload
+(defun lichess-game-draw ()
+  "Propose or accept a draw in the current game."
+  (interactive)
+  (unless lichess-game--id
+    (error "No game ID found for this buffer"))
+  (when (yes-or-no-p "Offer/Accept draw? ")
+    (let ((game-id lichess-game--id))
+      (message "Sending draw request for game %s..." game-id)
+      (lichess-http-request
+       (format "/api/board/game/%s/draw/yes" game-id)
+       (lambda (res)
+         (let ((status (car res))
+               (json (cdr res)))
+           (if (= status 200)
+               (message "Draw request sent/accepted.")
+             (message "Error with draw request: %d %s"
                       status
                       (or (lichess-util--aget json 'error) "")))))
        :method "POST"))))
