@@ -82,14 +82,29 @@ ARGUMENTS:
     (erase-buffer)
     (insert
      (lichess-fen-render-heading pos "org+unicode" perspective))
-    (insert (lichess-fen-render-org-table pos t perspective eval-str))
+    (let ((start (point)))
+      (insert (lichess-fen-render-org-table pos t perspective eval-str))
+      (add-text-properties start (point) '(face lichess-board-face)))
     (when pos-info
       (insert (format "\n\n%s" pos-info)))
-    (when (fboundp 'org-table-align)
-      (save-excursion
-        (goto-char (point-min))
-        (org-table-align)))
     (goto-char (point-min))))
+
+;;;###autoload
+(defun lichess-game-preview-fen (fen &optional eval-str perspective)
+  "Preview FEN rendering as it would appear in a live game.
+FEN is the position to render.
+EVAL-STR is an optional evaluation (e.g., \"+1.2\" or \"M2\").
+PERSPECTIVE is the board orientation ('white or 'black)."
+  (interactive (list
+                (read-string "FEN: " "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+                (read-string "Eval (optional): ")
+                (intern (completing-read "Perspective: " '("white" "black") nil t "white"))))
+  (let ((buf (get-buffer-create "*Lichess Game Preview*"))
+        (pos (lichess-fen-parse fen)))
+    (with-current-buffer buf
+      (lichess-game-buffer-mode)
+      (lichess-game--render-pos pos perspective eval-str "Preview Mode"))
+    (pop-to-buffer buf)))
 
 (defun lichess-game-history-previous ()
   "Move to the previous position in game history."

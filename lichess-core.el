@@ -24,13 +24,53 @@
     m)
   "Keymap for `lichess-core-mode'.")
 
+(defgroup lichess nil
+  "Lichess client."
+  :group 'applications)
+
+(defcustom lichess-chess-font nil
+  "Font family for Unicode chess pieces in the GUI.
+If nil, use `fixed-pitch` family. Example: \"DejaVu Sans\"."
+  :set (lambda (symbol value)
+         (set-default symbol value)
+         (when (fboundp 'lichess-setup-chess-font)
+           (lichess-setup-chess-font value)))
+  :type '(choice (const :tag "Default" nil) string)
+  :group 'lichess)
+
+(defface lichess-board-face
+  '((((type graphic)) :inherit fixed-pitch)
+    (t :inherit fixed-pitch))
+  "Face applied to the whole chess board."
+  :group 'lichess)
+
+(defun lichess-setup-chess-font (&optional font-family)
+  "Force a monospaced font family for the whole board and pieces.
+Apply FONT-FAMILY to the chess piece Unicode range (U+2654-U+265F).
+If FONT-FAMILY is nil, try to find a suitable monospaced font.
+This is useful if your default font makes the GUI board look jagged."
+  (interactive (list (let ((all (font-family-list)))
+                       (completing-read "Mono Font: " all nil t
+                                        (or (car (seq-filter (lambda (f) (string-match-p "Mono" f)) all))
+                                            lichess-chess-font)))))
+  (when (display-graphic-p)
+    (let ((family (or font-family
+                      lichess-chess-font
+                      (face-attribute 'fixed-pitch :family)
+                      "monospace")))
+      (set-fontset-font t '(#x2654 . #x265F) family)
+      (set-fontset-font t '(#x00b7 . #x00b7) family)
+      ;; Force the board face to use this family too
+      (set-face-attribute 'lichess-board-face nil :family family)
+      (message "Lichess: Board and chess font forced to %s" family))))
+
 (define-derived-mode
- lichess-core-mode
- special-mode
- "Lichess"
- "Base mode for Lichess buffers."
- (read-only-mode 1)
- (setq truncate-lines t))
+  lichess-core-mode
+  special-mode
+  "Lichess"
+  "Base mode for Lichess buffers."
+  (read-only-mode 1)
+  (setq truncate-lines t))
 
 ;;;; Buffers
 (defmacro lichess-core-with-buf (buf &rest body)

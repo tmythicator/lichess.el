@@ -122,7 +122,7 @@ Return (row . col) or nil. Valid ranks are only 3 and 6."
     (?b "♝")
     (?n "♞")
     (?p "♟")
-    (_ ".")))
+    (_ "·")))
 
 (defun lichess-fen-render-org-table
     (pos &optional unicode perspective eval-str)
@@ -159,7 +159,7 @@ If EVAL-STR is non-nil, render a vertical evaluation bar next to the board."
                     '("a" "b" "c" "d" "e" "f" "g" "h")))
                  (header
                   (format "|%s| " (mapconcat #'identity files "|")))
-                 (sep "|-+-+-+-+-+-+-+-+-|"))
+                 (sep "|-+-+-+-+-+-+-+-+-"))
             (cl-labels
              ((row->line
                (r)
@@ -170,7 +170,7 @@ If EVAL-STR is non-nil, render a vertical evaluation bar next to the board."
                           (funcall fmt (aref rowv c)))
                         col-seq))
                       (rank-label (- 8 r)))
-                 (format "|%s|%d|"
+                 (format "|%s|%d"
                          (string-join cells "|")
                          rank-label))))
              (append
@@ -179,11 +179,11 @@ If EVAL-STR is non-nil, render a vertical evaluation bar next to the board."
          (board-rows (seq-subseq board-lines 0 8))
          (sep (nth 8 board-lines))
          (header (nth 9 board-lines)))
-
+ 
     (if (or (not eval-str) (string= eval-str "..."))
         ;; If no eval-str, just return the board as a single string.
         (string-join (append board-rows (list sep header)) "\n")
-
+ 
       ;; If eval-str exists, stitch the bar to the right of the board.
       (let* ((bar-lines
               (lichess-fen--render-evaluation-bar
@@ -195,7 +195,7 @@ If EVAL-STR is non-nil, render a vertical evaluation bar next to the board."
         (dotimes (i 8)
           (push (format "%s  %s" (nth i board-rows) (nth i bar-body))
                 stitched-rows))
-
+ 
         (string-join (append
                       (reverse stitched-rows)
                       (list sep (format "%s  %s" header bar-header)))
@@ -290,7 +290,9 @@ PERSPECTIVE: \`white', \`black', or \`from-stm' (default \`from-stm')."
      buf
      (erase-buffer)
      (insert (lichess-fen-render-heading pos style persp))
-     (insert (lichess-fen-render-org-table pos unicode persp))
+     (let ((start (point)))
+       (insert (lichess-fen-render-org-table pos unicode persp))
+       (add-text-properties start (point) '(face lichess-board-face)))
      (insert "\n"))
     (pop-to-buffer buf)))
 

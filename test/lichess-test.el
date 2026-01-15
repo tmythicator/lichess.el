@@ -8,6 +8,8 @@
 
 (require 'lichess-util)
 (require 'lichess-fen)
+(require 'lichess-game)
+(require 'lichess-core)
 
 ;;; lichess-util.el tests
 
@@ -21,7 +23,7 @@
     (should (equal (lichess-util--aget al "title") "GM"))
     (should (equal (lichess-util--aget al 'rating) 2500))
     (should (equal (lichess-util--aget al 'nonexistent) nil)))
-  
+
   ;; Hash table tests
   (let ((ht (make-hash-table :test 'equal)))
     (puthash "name" "Bob" ht)
@@ -69,7 +71,7 @@
     ;; Check corner pieces
     (should (= (aref (aref (lichess-pos-board pos) 0) 0) ?r))
     (should (= (aref (aref (lichess-pos-board pos) 7) 7) ?R)))
-  
+
   (let* ((fen "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3")
          (pos (lichess-fen-parse fen)))
     (should (eq (lichess-pos-stm pos) 'w))
@@ -86,7 +88,7 @@
     (should (= (length (aref board 0)) 8))
     (should (= (aref (aref board 0) 0) ?r))
     (should (= (aref (aref board 2) 0) ?.)))
-  
+
   ;; Error cases
   (should-error (lichess-fen--rows->board '("rnbqkbnr" "pppppppp")) :type 'user-error) ; Too few rows
   (should-error (lichess-fen--rows->board '("rnbqkbnr" "pppppppp" "8" "8" "8" "8" "PPPPPPPP" "RNBQKBNR2")) :type 'user-error)) ; Row overflow
@@ -95,39 +97,72 @@
   "Test `lichess-fen--piece->unicode`."
   (should (equal (lichess-fen--piece->unicode ?K) "♔"))
   (should (equal (lichess-fen--piece->unicode ?k) "♚"))
-  (should (equal (lichess-fen--piece->unicode ?.) ".")))
+  (should (equal (lichess-fen--piece->unicode ?.) "·")))
+
+(defun lichess-test--verify-alignment (rendered)
+  "Verify that all separators '|' in RENDERED are vertically aligned.
+Skips lines with fewer than 2 separators (like the ASCII separator line)."
+  (with-temp-buffer
+    (insert rendered)
+    (goto-char (point-min))
+    (let (separator-columns)
+      (while (not (eobp))
+        (let ((line-separators '())
+              (line-start (line-beginning-position)))
+          (save-excursion
+            (while (search-forward "|" (line-end-position) t)
+              (push (- (point) line-start 1) line-separators)))
+          (setq line-separators (nreverse line-separators))
+          ;; Only compare lines with at least 2 pipes (the board rows and header)
+          (when (> (length line-separators) 1)
+            (if separator-columns
+                (should (equal separator-columns line-separators))
+              (setq separator-columns line-separators))))
+        (forward-line 1)))))
 
 (ert-deftest lichess-fen-render-org-table-test ()
-  "Test `lichess-fen-render-org-table` output."
+  "Test `lichess-fen-render-org-table` output and alignment."
   (let* ((fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
          (pos (lichess-fen-parse fen))
-         (expected-ascii (concat "|r|n|b|q|k|b|n|r|8|\n"
-                                 "|p|p|p|p|p|p|p|p|7|\n"
-                                 "|.|.|.|.|.|.|.|.|6|\n"
-                                 "|.|.|.|.|.|.|.|.|5|\n"
-                                 "|.|.|.|.|.|.|.|.|4|\n"
-                                 "|.|.|.|.|.|.|.|.|3|\n"
-                                 "|P|P|P|P|P|P|P|P|2|\n"
-                                 "|R|N|B|Q|K|B|N|R|1|\n"
-                                 "|-+-+-+-+-+-+-+-+-|\n"
-                                 "|a|b|c|d|e|f|g|h| ")))
-    (should (equal (lichess-fen-render-org-table pos nil 'white) expected-ascii))))
+         (render (lichess-fen-render-org-table pos nil 'white))
+         (expected (concat "|r|n|b|q|k|b|n|r|8\n"
+                           "|p|p|p|p|p|p|p|p|7\n"
+                           "|.|.|.|.|.|.|.|.|6\n"
+                           "|.|.|.|.|.|.|.|.|5\n"
+                           "|.|.|.|.|.|.|.|.|4\n"
+                           "|.|.|.|.|.|.|.|.|3\n"
+                           "|P|P|P|P|P|P|P|P|2\n"
+                           "|R|N|B|Q|K|B|N|R|1\n"
+                           "|-+-+-+-+-+-+-+-+-\n"
+                           "|a|b|c|d|e|f|g|h| ")))
+    (lichess-test--verify-alignment render)
+    (should (equal render expected))
+    ;; Check specific ranks for alignment and content
+    (should (string-match "|r|n|b|q|k|b|n|r|8" render))
+    (should (string-match "|\\.\\|\\.\\|\\.\\|\\.\\|\\.\\|\\.\\|\\.\\|\\.\\|5" render))
+    (should (string-match "|R|N|B|Q|K|B|N|R|1" render))))
 
 (ert-deftest lichess-fen-render-org-table-unicode-test ()
-  "Test `lichess-fen-render-org-table` with Unicode pieces."
+  "Test `lichess-fen-render-org-table` with Unicode pieces and alignment."
   (let* ((fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
          (pos (lichess-fen-parse fen))
-         (expected-unicode (concat "|♜|♞|♝|♛|♚|♝|♞|♜|8|\n"
-                                   "|♟|♟|♟|♟|♟|♟|♟|♟|7|\n"
-                                   "|.|.|.|.|.|.|.|.|6|\n"
-                                   "|.|.|.|.|.|.|.|.|5|\n"
-                                   "|.|.|.|.|.|.|.|.|4|\n"
-                                   "|.|.|.|.|.|.|.|.|3|\n"
-                                   "|♙|♙|♙|♙|♙|♙|♙|♙|2|\n"
-                                   "|♖|♘|♗|♕|♔|♗|♘|♖|1|\n"
-                                   "|-+-+-+-+-+-+-+-+-|\n"
-                                   "|a|b|c|d|e|f|g|h| ")))
-    (should (equal (lichess-fen-render-org-table pos t 'white) expected-unicode))))
+         (render (lichess-fen-render-org-table pos t 'white))
+         (expected (concat "|♜|♞|♝|♛|♚|♝|♞|♜|8\n"
+                           "|♟|♟|♟|♟|♟|♟|♟|♟|7\n"
+                           "|·|·|·|·|·|·|·|·|6\n"
+                           "|·|·|·|·|·|·|·|·|5\n"
+                           "|·|·|·|·|·|·|·|·|4\n"
+                           "|·|·|·|·|·|·|·|·|3\n"
+                           "|♙|♙|♙|♙|♙|♙|♙|♙|2\n"
+                           "|♖|♘|♗|♕|♔|♗|♘|♖|1\n"
+                           "|-+-+-+-+-+-+-+-+-\n"
+                           "|a|b|c|d|e|f|g|h| ")))
+    (lichess-test--verify-alignment render)
+    (should (equal render expected))
+    ;; Check specific ranks for alignment and content
+    (should (string-match "|♜|♞|♝|♛|♚|♝|♞|♜|8" render))
+    (should (string-match "|·|·|·|·|·|·|·|·|5" render))
+    (should (string-match "|♖|♘|♗|♕|♔|♗|♘|♖|1" render))))
 
 (ert-deftest lichess-fen-render-org-table-eval-test ()
   "Test `lichess-fen-render-org-table` with evaluation bar."
@@ -138,6 +173,26 @@
     (should (string-match "Eval" render))
     (should (string-match "░" render))
     (should (string-match "█" render))))
+
+(ert-deftest lichess-face-definition-test ()
+  "Verify `lichess-board-face` definition."
+  (should (facep 'lichess-board-face))
+  (let ((inherit (face-attribute 'lichess-board-face :inherit)))
+    (should (or (eq inherit 'fixed-pitch)
+                (and (listp inherit) (memq 'fixed-pitch inherit))))))
+
+(ert-deftest lichess-game-render-face-test ()
+  "Verify that `lichess-game--render-pos` applies `lichess-board-face`."
+  (let* ((fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+         (pos (lichess-fen-parse fen)))
+    (with-temp-buffer
+      (lichess-game--render-pos pos 'white)
+      (goto-char (point-min))
+      ;; Search for the board start (first pipe)
+      (search-forward "|")
+      (backward-char)
+      ;; Verify face at this point
+      (should (eq (get-text-property (point) 'face) 'lichess-board-face)))))
 
 (provide 'lichess-test)
 ;;; lichess-test.el ends here
