@@ -62,7 +62,8 @@
             ("(Debug) Diagnose account" . lichess-debug-diagnose)
             ("(Debug) NDJSON Stream" . lichess-debug-game-stream)
             ("(Debug) TV: JSON channels" . lichess-debug-tv)
-            ("(Debug) Render FEN position" . lichess-fen-show)))
+            ("(Debug) Render FEN position" . lichess-fen-show)
+            ("Settings: Set Board Style" . lichess-set-style)))
          (pick
           (completing-read "Lichess: " (mapcar #'car choices) nil t))
          (cmd (cdr (assoc pick choices))))
@@ -72,6 +73,54 @@
              lichess-debug-game-stream lichess-debug-tv))
       (require 'lichess-debug))
     (call-interactively cmd)))
+
+;;;###autoload
+(defun lichess-set-style (style)
+  "Set the board rendering STYLE interactively.
+STYLE: \"unicode\", \"ascii\", or \"gui\".
+Warns if \"gui\" is selected but unavailable or missing assets."
+  (interactive (list
+                (completing-read
+                 "Board Style: " '("unicode" "ascii" "gui")
+                 nil t lichess-board-style)))
+
+  (when (string= style "gui")
+    (cond
+     ((not (display-graphic-p))
+      (display-warning
+       'lichess
+       "GUI style selected but Emacs is not running in graphical mode. Fallback to TUI will apply."
+       :warning))
+     ((not (lichess-board-gui-available-p))
+      (display-warning
+       'lichess
+       "GUI style selected but SVG support is missing in this Emacs build."
+       :warning))
+     (t
+      (let ((missing (lichess-board-gui-missing-assets)))
+        (when missing
+          (display-warning
+           'lichess
+           (format "GUI style selected but assets are missing: %s"
+                   (string-join missing ", "))
+           :warning))))))
+
+  (customize-set-variable 'lichess-board-style style)
+  (message "Lichess Board Style set to '%s'" style)
+
+  ;; Refresh open buffers
+  (dolist (buf (buffer-list))
+    (with-current-buffer buf
+      (cond
+       ((and (boundp 'lichess-fen--current-pos)
+             lichess-fen--current-pos
+             (fboundp 'lichess-fen-refresh))
+        (funcall 'lichess-fen-refresh))
+
+       ((and (boundp 'lichess-game--current-idx)
+             lichess-game--current-idx
+             (fboundp 'lichess-game-refresh))
+        (funcall 'lichess-game-refresh))))))
 
 (provide 'lichess)
 ;;; lichess.el ends here

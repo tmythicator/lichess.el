@@ -9,9 +9,9 @@
 (require 'lichess-util)
 (require 'lichess-fen)
 (require 'lichess-game)
-(require 'lichess-core)
-(require 'lichess-board)
 (require 'lichess-board-tui)
+(require 'lichess-board-gui)
+(require 'lichess)
 
 ;;; lichess-util.el tests
 
@@ -224,6 +224,44 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
               ((symbol-function 'lichess-board-tui-draw) (lambda (_ _ _ _) "TUI")))
       (let ((lichess-board-style "ascii"))
         (should (equal (lichess-board-draw pos) "TUI"))))))
+
+(ert-deftest lichess-set-style-test ()
+  "Test `lichess-set-style` interactivity and warnings."
+  (let ((warnings '())
+        (custom-set-val nil))
+    (cl-letf (((symbol-function 'display-warning)
+               (lambda (_ msg &rest _) (push msg warnings)))
+              ((symbol-function 'customize-set-variable)
+               (lambda (_ val) (setq custom-set-val val)))
+              ((symbol-function 'message) #'ignore))
+
+      ;; 1. Success case (ASCII)
+      (setq warnings '()) 
+      (lichess-set-style "ascii")
+      (should (string= custom-set-val "ascii"))
+      (should (null warnings))
+
+      ;; 2. Warning: Terminal mode
+      (setq warnings '())
+      (cl-letf (((symbol-function 'display-graphic-p) (lambda () nil)))
+        (lichess-set-style "gui"))
+      (should (string-match "Emacs is not running in graphical mode" (car warnings)))
+      (should (string= custom-set-val "gui")) ;; It still sets it
+
+      ;; 3. Warning: No SVG support
+      (setq warnings '())
+      (cl-letf (((symbol-function 'display-graphic-p) (lambda () t))
+                ((symbol-function 'lichess-board-gui-available-p) (lambda () nil)))
+        (lichess-set-style "gui"))
+      (should (string-match "SVG support is missing" (car warnings)))
+
+      ;; 4. Warning: Missing Assets
+      (setq warnings '())
+      (cl-letf (((symbol-function 'display-graphic-p) (lambda () t))
+                ((symbol-function 'lichess-board-gui-available-p) (lambda () t))
+                ((symbol-function 'lichess-board-gui-missing-assets) (lambda () '("wK.svg"))))
+        (lichess-set-style "gui"))
+      (should (string-match "assets are missing: wK.svg" (car warnings))))))
 
 (provide 'lichess-test)
 ;;; lichess-test.el ends here

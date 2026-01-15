@@ -17,17 +17,10 @@
 (require 'cl-lib)
 (require 'subr-x)
 (require 'lichess-core)
+(require 'lichess-board)
 
-(defvar lichess-fen--buf "*Lichess FEN*")
 
-(cl-defstruct
- lichess-pos "Internal chess position.  Row 0 = rank 8 (top)."
- board ;; vector[8] of vector[8] chars
- stm ;; 'w or 'b
- castle ;; string like "KQkq" or "-"
- ep ;; (row . col) or nil
- halfmove ;; int
- fullmove) ;; int
+(defvar lichess-fen--buf "*Lichess FEN Preview*")
 
 ;;; FEN -> position
 (defun lichess-fen-parse (fen)
@@ -107,10 +100,31 @@ EP-S is the en passant target string."
          (row (- 8 rank)))
       (cons row col))))
 
+(defvar-local lichess-fen--current-pos nil
+  "The current `lichess-pos` being displayed.")
+(defvar-local lichess-fen--current-persp nil
+  "The current perspective.")
+
+(defun lichess-fen-refresh ()
+  "Redraw the current FEN buffer using the latest style settings."
+  (when (and lichess-fen--current-pos lichess-fen--current-persp)
+    (let ((inhibit-read-only t))
+      (font-lock-mode -1)
+      (erase-buffer)
+      (insert
+       (lichess-board-draw-heading
+        lichess-fen--current-pos lichess-fen--current-persp))
+      (insert
+       (lichess-board-draw
+        lichess-fen--current-pos lichess-fen--current-persp))
+      (insert "\n")
+      (goto-char (point-min))
+      (message "Lichess FEN shown (Style: %s)" lichess-board-style))))
+
 ;;;###autoload
 (defun lichess-fen-show (fen &optional perspective)
   "Render FEN in a preview buffer using `lichess-board-style' and PERSPECTIVE.
-PERSPECTIVE: \`white', \`black', or \`from-stm' (default \`from-stm')."
+PERSPECTIVE: `white', `black', or `from-stm' (default `from-stm')."
 
   (interactive (list
                 (read-string "FEN: " nil nil "startpos")
@@ -123,6 +137,8 @@ PERSPECTIVE: \`white', \`black', or \`from-stm' (default \`from-stm')."
          (buf (get-buffer-create lichess-fen--buf))
          (persp-raw
           (cond
+           ((or (null perspective) (eq perspective 'from-stm))
+            'from-stm)
            ((symbolp perspective)
             perspective)
            ((stringp perspective)
@@ -135,18 +151,12 @@ PERSPECTIVE: \`white', \`black', or \`from-stm' (default \`from-stm')."
                   'black
                 'white)
             persp-raw)))
-    (with-current-buffer buf
-      (lichess-core-mode))
-    (lichess-core-with-buf
-     buf
-     (erase-buffer)
-     (insert (lichess-board-draw-heading pos persp))
-     (let ((start (point)))
-       (insert (lichess-board-draw pos persp))
-       (add-text-properties
-        start (point) '(face lichess-core-board-face)))
-     (insert "\n"))
-    (pop-to-buffer buf)))
+    (pop-to-buffer buf)
+    (lichess-core-mode)
+    (setq
+     lichess-fen--current-pos pos
+     lichess-fen--current-persp persp)
+    (lichess-fen-refresh)))
 
 ;;; Move application
 (defun lichess-fen-apply-moves (pos moves-str)

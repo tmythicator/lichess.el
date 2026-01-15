@@ -14,7 +14,6 @@
 
 (require 'svg)
 (require 'lichess-core)
-(require 'lichess-fen) ;; For struct accessors
 
 (defcustom lichess-board-gui-asset-path
   (expand-file-name "assets/pieces/cburnett/"
@@ -106,16 +105,24 @@ PERSPECTIVE: \\='white, \\='black, or \\='auto."
 
     (propertize " " 'display (svg-image svg :ascent 'center))))
 
+(defun lichess-board-gui-missing-assets ()
+  "Return a list of missing piece SVG files, or nil if all exist."
+  (let ((missing '())
+        (pieces '(?K ?Q ?R ?B ?N ?P ?k ?q ?r ?b ?n ?p)))
+    (dolist (p pieces)
+      (let ((f (lichess-board-gui--piece-file p)))
+        (unless (file-exists-p f)
+          (push (file-name-nondirectory f) missing))))
+    missing))
+
 (defun lichess-board-gui-debug-diagnose ()
   "Print diagnostic info about GUI assets."
   (interactive)
   (message "Asset Path: %s" lichess-board-gui-asset-path)
-  (let ((wk (lichess-board-gui--piece-file ?K)))
-    (message "Checking wK: %s -> %s"
-             wk
-             (if (file-exists-p wk)
-                 "OK"
-               "MISSING"))))
+  (let ((missing (lichess-board-gui-missing-assets)))
+    (if missing
+        (message "Missing assets: %s" (string-join missing ", "))
+      (message "All assets found."))))
 
 
 (provide 'lichess-board-gui)

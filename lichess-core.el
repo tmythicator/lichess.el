@@ -14,8 +14,20 @@
 ;;
 ;;; Code:
 
+
 (require 'url)
+(require 'cl-lib)
 (require 'lichess-http)
+
+(cl-defstruct
+ lichess-pos "Internal chess position.  Row 0 = rank 8 (top)."
+ board ;; vector[8] of vector[8] chars
+ stm ;; 'w or 'b
+ castle ;; string like "KQkq" or "-"
+ ep ;; (row . col) or nil
+ halfmove ;; int
+ fullmove) ;; int
+
 
 (defvar lichess-core-mode-map
   (let ((m (make-sparse-keymap)))

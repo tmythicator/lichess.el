@@ -17,7 +17,6 @@
 (require 'cl-lib)
 (require 'subr-x)
 (require 'lichess-core)
-(require 'lichess-fen)
 
 (defun lichess-board-tui--piece->unicode (ch)
   "Map ASCII piece CH to Unicode figure (string)."

@@ -114,6 +114,28 @@ ARGUMENTS:
          (lichess-game--render-pos pos lichess-game--perspective
                                    eval-str pos-info))))))
 
+(defun lichess-game-refresh ()
+  "Redraw the current game buffer."
+  (when (and lichess-game--current-idx lichess-game--fen-history)
+    (let* ((fen
+            (aref
+             lichess-game--fen-history lichess-game--current-idx))
+           (eval-str
+            (gethash
+             lichess-game--current-idx lichess-game--eval-cache))
+           (pos
+            (ignore-errors
+              (lichess-fen-parse fen)))
+           (pos-info
+            (format "Position %d/%d"
+                    (1+ lichess-game--current-idx)
+                    (length lichess-game--fen-history))))
+      (when pos
+        (lichess-core-with-buf
+         (current-buffer)
+         (lichess-game--render-pos pos lichess-game--perspective
+                                   eval-str pos-info))))))
+
 (defun lichess-game-history-next ()
   "Move to the next position in game history."
   (interactive)
