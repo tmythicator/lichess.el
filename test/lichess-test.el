@@ -190,7 +190,7 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
          (pos (lichess-fen-parse fen))
          (lichess-board-style "ascii"))
     (with-temp-buffer
-      (lichess-game--render-pos pos 'white)
+      (lichess-game--render-pos pos)
       (goto-char (point-min))
       ;; Search for the board start (first pipe)
       (search-forward "|")

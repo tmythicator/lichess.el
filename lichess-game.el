@@ -54,8 +54,7 @@
  "Major mode for live Lichess game buffers."
  (setq truncate-lines t))
 
-(defun lichess-game--render-pos
-    (pos perspective &optional eval-str pos-info)
+(defun lichess-game--render-pos (pos &optional eval-str pos-info)
   "Render the complete game view for POS in the current buffer.
 
 This function is the main renderer.  It clears the buffer and draws
@@ -64,10 +63,14 @@ additional position information.
 
 ARGUMENTS:
 - POS: A \`lichess-pos' struct representing the chess position.
-- PERSPECTIVE: A symbol, either \`white', \`black', or \`auto'.
 - EVAL-STR: An optional evaluation string (e.g., \"+0.52\" or \"M3\").
 - POS-INFO: An optional string with context (e.g., \"\n\nPosition 5/42\")."
-  (lichess-board-render-to-buffer pos perspective eval-str pos-info))
+  (let ((perspective
+         (if lichess-game--state
+             (lichess-game-perspective lichess-game--state)
+           'auto)))
+    (lichess-board-render-to-buffer
+     pos perspective eval-str pos-info)))
 
 (defun lichess-game-history-previous ()
   "Move to the previous position in game history."
@@ -90,13 +93,12 @@ ARGUMENTS:
            (pos
             (ignore-errors
               (lichess-fen-parse fen)))
-           (persp (lichess-game-perspective state))
            (pos-info
             (format "Position %d/%d" (1+ idx) (length hist))))
       (when pos
         (lichess-core-with-buf
          (current-buffer)
-         (lichess-game--render-pos pos persp eval-str pos-info))))))
+         (lichess-game--render-pos pos eval-str pos-info))))))
 
 (defun lichess-game-history-next ()
   "Move to the next position in game history."
@@ -187,8 +189,7 @@ BUF is the target buffer, OBJ is the parsed JSON event."
          (when-let ((pos
                      (ignore-errors
                        (lichess-fen-parse fen))))
-           (lichess-game--render-pos
-            pos (lichess-game-perspective state))))))))
+           (lichess-game--render-pos pos)))))))
 
 (defun lichess-game--board-on-event (buf obj)
   "Callback for Board API stream events.
@@ -256,8 +257,7 @@ BUF is the target buffer, OBJ is the parsed JSON event."
          (when (lichess-game-live-mode state)
            (setf (lichess-game-current-idx state)
                  (1- (length (lichess-game-fen-history state))))
-           (lichess-game--render-pos
-            current-pos (lichess-game-perspective state))))))))
+           (lichess-game--render-pos current-pos)))))))
 
 (defun lichess-game--stream-on-close (buf msg-prefix _proc msg)
   "Callback for NDJSON stream close.
@@ -351,7 +351,7 @@ This uses /api/board/game/stream/{ID} which has no delay."
                        i eval-str (lichess-game-eval-cache state))
                       (when (= i (lichess-game-current-idx state))
                         (lichess-game--render-pos
-                         pos (lichess-game-perspective state)
+                         pos
                          eval-str pos-info))))))))))))))
 
 ;;;###autoload
@@ -383,9 +383,7 @@ This uses /api/board/game/stream/{ID} which has no delay."
           (when pos
             (lichess-core-with-buf
              (current-buffer)
-             (lichess-game--render-pos
-              pos (lichess-game-perspective state)
-              eval-str pos-info))))))))
+             (lichess-game--render-pos pos eval-str pos-info))))))))
 
 ;;;###autoload
 (defun lichess-game-stream-stop ()
