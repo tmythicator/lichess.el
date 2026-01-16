@@ -185,12 +185,18 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
               (eq 'fixed-pitch inherit)))))
 
 (ert-deftest lichess-game-render-face-test ()
-  "Verify that `lichess-game--render-pos` applies `lichess-core-board-face`."
+  "Verify that `lichess-game-render` applies `lichess-core-board-face`."
   (let* ((fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-         (pos (lichess-fen-parse fen))
          (lichess-board-style "ascii"))
     (with-temp-buffer
-      (lichess-game--render-pos pos)
+      ;; Setup mock state
+      (setq-local lichess-game--state
+                  (make-lichess-game
+                   :fen-history (vector fen)
+                   :current-idx 0
+                   :perspective 'white
+                   :eval-cache (make-hash-table)))
+      (lichess-game-render)
       (goto-char (point-min))
       ;; Search for the board start (first pipe)
       (search-forward "|")
