@@ -187,7 +187,7 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
 (ert-deftest lichess-game-render-face-test ()
   "Verify that `lichess-game-render` applies `lichess-core-board-face`."
   (let* ((fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-         (lichess-board-style "ascii"))
+         (lichess-board-tui-preferred-style "ascii"))
     (with-temp-buffer
       ;; Setup mock state
       (setq-local lichess-game--state
@@ -214,21 +214,23 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
     (cl-letf (((symbol-function 'lichess-board-gui-available-p) (lambda () t))
               ((symbol-function 'lichess-board-gui-draw) (lambda (_ _) "GUI"))
               ((symbol-function 'lichess-board-tui-draw) (lambda (_ _ _ _) "TUI")))
-      (let ((lichess-board-style "gui"))
+      (let ((lichess-board-gui-preferred-style "gui"))
         (should (equal (lichess-board-draw pos) "GUI"))))
 
     ;; Case 2: Style "gui", GUI NOT available -> Fallback to TUI (Unicode)
     (cl-letf (((symbol-function 'lichess-board-gui-available-p) (lambda () nil))
               ((symbol-function 'lichess-board-gui-draw) (lambda (_ _) "GUI"))
               ((symbol-function 'lichess-board-tui-draw) (lambda (_ _ _ _) "TUI")))
-      (let ((lichess-board-style "gui"))
+      (let ((lichess-board-gui-preferred-style "gui")
+            (lichess-board-tui-preferred-style "unicode"))
         (should (equal (lichess-board-draw pos) "TUI"))))
 
     ;; Case 3: Style "ascii" -> calls TUI
     (cl-letf (((symbol-function 'lichess-board-gui-available-p) (lambda () t))
               ((symbol-function 'lichess-board-gui-draw) (lambda (_ _) "GUI"))
               ((symbol-function 'lichess-board-tui-draw) (lambda (_ _ _ _) "TUI")))
-      (let ((lichess-board-style "ascii"))
+      (let ((lichess-board-tui-preferred-style "ascii")
+            (lichess-board-gui-preferred-style "ascii"))
         (should (equal (lichess-board-draw pos) "TUI"))))))
 
 (ert-deftest lichess-set-style-test ()

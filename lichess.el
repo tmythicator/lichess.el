@@ -82,7 +82,7 @@ Warns if \"gui\" is selected but unavailable or missing assets."
   (interactive (list
                 (completing-read
                  "Board Style: " '("unicode" "ascii" "gui")
-                 nil t lichess-board-style)))
+                 nil t)))
 
   (when (string= style "gui")
     (cond
@@ -105,8 +105,15 @@ Warns if \"gui\" is selected but unavailable or missing assets."
                    (string-join missing ", "))
            :warning))))))
 
-  (customize-set-variable 'lichess-board-style style)
-  (message "Lichess Board Style set to '%s'" style)
+  (if (display-graphic-p)
+      (customize-set-variable
+       'lichess-board-gui-preferred-style style)
+    (customize-set-variable 'lichess-board-tui-preferred-style style))
+  (message "Lichess Board Style set to '%s' (%s)"
+           style
+           (if (display-graphic-p)
+               "GUI"
+             "TUI"))
 
   ;; Refresh open buffers
   (dolist (buf (buffer-list))

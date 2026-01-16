@@ -166,9 +166,13 @@ STYLE is \"ascii\" or \"unicode\"."
          (ep (or (lichess-pos-ep pos) "-"))
          (full (lichess-pos-fullmove pos))
          (tag
-          (if (string= style "unicode")
-              "Unicode"
-            "ASCII")))
+          (cond
+           ((string= style "unicode")
+            "Unicode")
+           ((string= style "ascii")
+            "ASCII")
+           (t
+            style))))
     (format "* %s moves (Castle: %s, EP: %s, Full: %d) [%s, %s]\n"
             stm
             castle

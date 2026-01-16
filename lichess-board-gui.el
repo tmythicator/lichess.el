@@ -25,7 +25,8 @@
 
 (defun lichess-board-gui-available-p ()
   "Return t if SVG rendering is available."
-  (and (fboundp 'image-type-available-p)
+  (and (display-graphic-p)
+       (fboundp 'image-type-available-p)
        (image-type-available-p 'svg)))
 
 (defun lichess-board-gui--piece-file (piece)

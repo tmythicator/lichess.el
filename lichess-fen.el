@@ -110,11 +110,16 @@ EP-S is the en passant target string."
   (when (and lichess-fen--current-pos lichess-fen--current-persp)
     (lichess-board-render-to-buffer
      lichess-fen--current-pos lichess-fen--current-persp)
-    (message "Lichess FEN shown (Style: %s)" lichess-board-style)))
+    (let ((style
+           (if (and (display-graphic-p)
+                    (lichess-board-gui-available-p))
+               lichess-board-gui-preferred-style
+             lichess-board-tui-preferred-style)))
+      (message "Lichess FEN shown (Style: %s)" style))))
 
 ;;;###autoload
 (defun lichess-fen-show (fen &optional perspective)
-  "Render FEN in a preview buffer using `lichess-board-style' and PERSPECTIVE.
+  "Render FEN in a preview buffer using the preferred style and PERSPECTIVE.
 PERSPECTIVE: `white', `black', or `from-stm' (default `from-stm')."
 
   (interactive (list
