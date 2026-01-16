@@ -7,7 +7,7 @@ ELS = $(filter-out test/%, $(wildcard *.el))
 TEST_ELS = $(wildcard test/*.el)
 
 test:
-	$(EMACS) -batch -L . -l test/lichess-test.el -f ert-run-tests-batch-and-exit
+	$(EMACS) -batch -L . $(foreach f,$(TEST_ELS),-l $(f)) -f ert-run-tests-batch-and-exit
 
 compile:
 	$(EMACS) -batch -L . -f batch-byte-compile $(ELS)

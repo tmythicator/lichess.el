@@ -28,6 +28,22 @@
  halfmove ;; int
  fullmove) ;; int
 
+(cl-defstruct
+ lichess-game "State for a Lichess game."
+ id ;; string
+ variant ;; string (e.g. "standard", "chess960")
+ initial-fen ;; string
+ initial-pos ;; lichess-pos
+ white ;; player-info (alist/plist)
+ black ;; player-info (alist/plist)
+ my-color ;; 'white, 'black, or nil
+ fen-history ;; vector of strings
+ eval-cache ;; hash-table
+ current-idx ;; int
+ live-mode ;; bool
+ perspective ;; 'white, 'black, or 'auto
+ speed ;; string (e.g. "blitz")
+ status) ;; string (e.g. "started")
 
 (defvar lichess-core-mode-map
   (let ((m (make-sparse-keymap)))
