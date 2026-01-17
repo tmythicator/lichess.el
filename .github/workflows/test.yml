@@ -35,5 +35,8 @@ jobs:
         if: matrix.emacs_version == 'snapshot'
         run: make format-check
 
+      - name: Checkdoc
+        run: make checkdoc
+
       - name: Lint
         run: make lint

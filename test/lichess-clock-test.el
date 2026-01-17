@@ -2,6 +2,7 @@
 
 (require 'ert)
 (require 'lichess-game)
+(require 'cl-lib)
 
 (ert-deftest lichess-game-format-time-test ()
   "Test formatting milliseconds to MM:SS string."
@@ -16,17 +17,17 @@
   "Test parsing clocks from stream events."
   (let ((mock-event
          '((type . "gameFull")
-            (id . "clockTest")
-            (initialFen . "startpos")
-            (variant . ((key . "standard")))
-            (white . ((id . "whitePlayer")))
-            (black . ((id . "blackPlayer")))
-            (state . ((moves . "") (wtime . 60000) (btime . 120000) (status . "started"))))))
+           (id . "clockTest")
+           (initialFen . "startpos")
+           (variant . ((key . "standard")))
+           (white . ((id . "whitePlayer")))
+           (black . ((id . "blackPlayer")))
+           (state . ((moves . "") (wtime . 60000) (btime . 120000) (status . "started"))))))
     (with-temp-buffer
       (lichess-game-buffer-mode)
       (lichess-game--reset-local-vars)
       (lichess-game--board-on-event (current-buffer) mock-event)
-      
+
       (let ((st lichess-game--state))
         (should (equal (lichess-game-white-clock st) "01:00"))
         (should (equal (lichess-game-black-clock st) "02:00"))))))
@@ -42,10 +43,10 @@
       (lichess-game-buffer-mode)
       (lichess-game--reset-local-vars)
       ;; Trick to init basic state so update works
-      (setf (lichess-game-live-mode lichess-game--state) nil) 
-      
+      (setf (lichess-game-live-mode lichess-game--state) nil)
+
       (lichess-game--stream-on-event (current-buffer) mock-event)
-      
+
       (let ((st lichess-game--state))
         (should (equal (lichess-game-white-clock st) "03:00"))
         (should (equal (lichess-game-black-clock st) "05:00"))))))
@@ -60,7 +61,7 @@
       (lichess-game-buffer-mode)
       (lichess-game--reset-local-vars)
       (lichess-game--stream-on-event (current-buffer) mock-event)
-      
+
       (let ((st lichess-game--state))
         (should (equal (lichess-game-white-clock st) "02:55"))
         (should (equal (lichess-game-black-clock st) "04:55"))))))
@@ -70,24 +71,28 @@
   (with-temp-buffer
     (lichess-game-buffer-mode)
     (lichess-game--reset-local-vars)
-    (let* ((st lichess-game--state)
-           (start-ms 10000) ;; 10s
-           (fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")) ;; White to move
-      
-      (setf (lichess-game-white-time-ms st) start-ms)
-      (setf (lichess-game-black-time-ms st) start-ms)
-      ;; Fake last update was 1 second ago
-      (setf (lichess-game-last-update-time st) (- (float-time) 1.0))
-      
-      ;; Setup History so tick can parse FEN
-      (setf (lichess-game-fen-history st) (vector fen))
-      (setf (lichess-game-current-idx st) 0)
-      (setf (lichess-game-live-mode st) t)
+    ;; Mock float-time to return a fixed value (e.g. 10000.0)
+    ;; so calculation is deterministic.
+    (cl-letf (((symbol-function 'float-time) (lambda () 10000.0)))
+      (let* ((st lichess-game--state)
+             (start-ms 10000) ;; 10s
+             (fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")) ;; White to move
 
-      ;; Run Tick
-      (lichess-game--tick (current-buffer))
-      
-      ;; White moved? 10s - 1s = 9s. "00:09"
-      (should (string= (lichess-game-white-clock st) "00:09"))
-      ;; Black should be unchanged "00:10"
-      (should (string= (lichess-game-black-clock st) "00:10")))))
+        (setf (lichess-game-white-time-ms st) start-ms)
+        (setf (lichess-game-black-time-ms st) start-ms)
+        ;; Fake last update was 1 second ago (9999.0)
+        (setf (lichess-game-last-update-time st) 9999.0)
+
+        ;; Setup History so tick can parse FEN
+        (setf (lichess-game-fen-history st) (vector fen))
+        (setf (lichess-game-current-idx st) 0)
+        (setf (lichess-game-live-mode st) t)
+
+        ;; Run Tick. Inside it calls (float-time) -> 10000.0
+        ;; Elapsed = 10000.0 - 9999.0 = 1.0s = 1000ms
+        (lichess-game--tick (current-buffer))
+
+        ;; White moved? 10s - 1s = 9s. "00:09"
+        (should (string= (lichess-game-white-clock st) "00:09"))
+        ;; Black should be unchanged "00:10"
+        (should (string= (lichess-game-black-clock st) "00:10"))))))
