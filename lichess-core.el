@@ -44,7 +44,15 @@
  perspective ;; 'white, 'black, or 'auto
  speed ;; string (e.g. "blitz")
  status ;; string (e.g. "started")
- selected-square) ;; symbol e.g. 'e2, or nil
+ selected-square ;; symbol e.g. 'e2, or nil
+
+ ;;; Clock
+ white-clock ;; string "MM:SS"
+ black-clock ;; string "MM:SS"
+ white-time-ms ;; number
+ black-time-ms ;; number
+ last-update-time ;; float
+ timer) ;; timer object
 
 (defvar lichess-core-mode-map
   (let ((m (make-sparse-keymap)))

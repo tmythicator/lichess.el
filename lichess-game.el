@@ -72,10 +72,25 @@ All parameters are derived from the buffer-local `lichess-game--state'."
            (pos-info (format "Position %d/%d" (1+ idx) (length hist)))
            (highlights
             (when-let ((sq (lichess-game-selected-square state)))
-              (list sq))))
+              (list sq)))
+           ;; Construct Preamble: "Name (Clock) vs Name (Clock)"
+           (w-name
+            (lichess-game--fmt-player-name
+             (lichess-game-white state)))
+           (b-name
+            (lichess-game--fmt-player-name
+             (lichess-game-black state)))
+           (w-clock (lichess-game-white-clock state))
+           (b-clock (lichess-game-black-clock state))
+           (preamble
+            (format "%s (%s) vs %s (%s)"
+                    w-name
+                    w-clock
+                    b-name
+                    b-clock)))
       (when pos
         (lichess-board-render-to-buffer
-         pos perspective eval-str pos-info highlights)))))
+         pos perspective eval-str pos-info highlights preamble)))))
 
 (defun lichess-game-history-previous ()
   "Move to the previous position in game history."
@@ -143,7 +158,83 @@ immediately after the initial summary state."
                :current-idx -1
                :live-mode t
                :perspective 'white
-               :selected-square nil)))
+               :selected-square nil
+               :white-clock "--:--"
+               :black-clock "--:--"
+               :white-time-ms nil
+               :black-time-ms nil
+               :last-update-time nil
+               :timer nil)))
+
+(defun lichess-game--format-time (millis)
+  "Format MILLIS (number) into MM:SS string."
+  (if (numberp millis)
+      (let* ((ms (round millis))
+             (secs (/ ms 1000))
+             (m (/ secs 60))
+             (s (% secs 60)))
+        (format "%02d:%02d" m s))
+    "--:--"))
+
+(defun lichess-game--tick (buf)
+  "Timer callback to update clocks in BUF."
+  (when (buffer-live-p buf)
+    (with-current-buffer buf
+      (when-let* ((state lichess-game--state)
+                  (live (lichess-game-live-mode state))
+                  (last-t (lichess-game-last-update-time state))
+                  (w-ms (lichess-game-white-time-ms state))
+                  (b-ms (lichess-game-black-time-ms state)))
+
+        ;; Determine who is moving
+        (let* ((hist (lichess-game-fen-history state))
+               (idx (or (lichess-game-current-idx state) -1))
+               (fen
+                (if (and (>= idx 0) (< idx (length hist)))
+                    (aref hist idx)
+                  nil))
+               (pos
+                (and fen
+                     (ignore-errors
+                       (lichess-fen-parse fen))))
+               (stm (and pos (lichess-pos-stm pos)))
+               (now (float-time))
+               (elapsed-ms (* (- now last-t) 1000)))
+
+          ;; Only tick if we are at the latest position (live mode) and game is likely active
+          (when (and live stm)
+            (let ((new-w w-ms)
+                  (new-b b-ms))
+              (if (eq stm 'w)
+                  (setq new-w (max 0 (- w-ms elapsed-ms)))
+                (setq new-b (max 0 (- b-ms elapsed-ms))))
+
+              (setf (lichess-game-white-clock state)
+                    (lichess-game--format-time new-w))
+              (setf (lichess-game-black-clock state)
+                    (lichess-game--format-time new-b))
+
+              ;; Only re-render if we actually changed the minutes/seconds string logic
+              ;; But renders are fast, let's just render.
+              (lichess-game-render))))))))
+
+(defun lichess-game--start-timer (buf)
+  "Start the clock ticker for BUF."
+  (with-current-buffer buf
+    (when lichess-game--state
+      (lichess-game--stop-timer buf)
+      (setf (lichess-game-timer lichess-game--state)
+            (run-at-time 1.0 1.0 #'lichess-game--tick buf)))))
+
+(defun lichess-game--stop-timer (&optional buf)
+  "Stop the clock ticker for BUF (defaults to current)."
+  (let ((b (or buf (current-buffer))))
+    (when (buffer-live-p b)
+      (with-current-buffer b
+        (when (and lichess-game--state
+                   (lichess-game-timer lichess-game--state))
+          (cancel-timer (lichess-game-timer lichess-game--state))
+          (setf (lichess-game-timer lichess-game--state) nil))))))
 
 (defun lichess-game--fmt-player-name (user-obj)
   "Extract a readable name from a Lichess player/user USER-OBJ."
@@ -166,7 +257,8 @@ ID is the game, BUF is the buffer, MSG-PREFIX for status."
    (lichess-game--reset-local-vars)
    (setf (lichess-game-id lichess-game--state) id)
    (erase-buffer)
-   (insert (format "%s %s…\n" msg-prefix id))))
+   (insert (format "%s %s…\n" msg-prefix id))
+   (lichess-game--start-timer buf)))
 
 (defun lichess-game--stream-on-event (buf obj)
   "Callback for spectator NDJSON stream events (contain FEN).
@@ -176,7 +268,22 @@ BUF is the target buffer, OBJ is the parsed JSON event."
    (let ((fen (lichess-game--extract-fen obj))
          (white (lichess-util--aget obj 'white))
          (black (lichess-util--aget obj 'black))
+         ;; Extract time sources independently
+         (wc-sec (lichess-util--aget obj 'wc))
+         (bc-sec (lichess-util--aget obj 'bc))
+         (wc-clock
+          (lichess-util--aget (lichess-util--aget obj 'clock) 'white))
+         (bc-clock
+          (lichess-util--aget (lichess-util--aget obj 'clock) 'black))
+         ;; Fallback to state.wtime (ms) if needed
+         (wtime-state
+          (lichess-util--aget (lichess-util--aget obj 'state) 'wtime))
+         (btime-state
+          (lichess-util--aget (lichess-util--aget obj 'state) 'btime))
+
+
          (state lichess-game--state))
+
      ;; Update names if found (usually in the first message)
      (when (or white black)
        (let ((w-name (lichess-game--fmt-player-name white))
@@ -187,6 +294,39 @@ BUF is the target buffer, OBJ is the parsed JSON event."
          (goto-char (point-max))
          (insert
           (format "\nWatching: %s (W) vs %s (B)\n" w-name b-name))))
+
+     ;; Update Clocks
+     ;; Prioritize 'wc' (seconds) -> convert to ms
+     ;; Then 'clock.white' (ms)
+     ;; Then 'state.wtime' (ms)
+     (let ((final-w
+            (cond
+             (wc-sec
+              (* wc-sec 1000))
+             (wc-clock
+              wc-clock)
+             (wtime-state
+              wtime-state)))
+           (final-b
+            (cond
+             (bc-sec
+              (* bc-sec 1000))
+             (bc-clock
+              bc-clock)
+             (btime-state
+              btime-state))))
+
+       (when (numberp final-w)
+         (setf (lichess-game-white-clock state)
+               (lichess-game--format-time final-w))
+         (setf (lichess-game-white-time-ms state) final-w))
+       (when (numberp final-b)
+         (setf (lichess-game-black-clock state)
+               (lichess-game--format-time final-b))
+         (setf (lichess-game-black-time-ms state) final-b))
+
+       (setf (lichess-game-last-update-time state) (float-time)))
+
      ;; Render FEN
      (when fen
        (lichess-game--fen-history-vpush fen)
@@ -203,9 +343,21 @@ BUF is the target buffer, OBJ is the parsed JSON event."
    (let* ((type (lichess-util--aget obj 'type))
           (state-obj (or (lichess-util--aget obj 'state) obj))
           (moves (lichess-util--aget state-obj 'moves))
+          (wtime (lichess-util--aget state-obj 'wtime))
+          (btime (lichess-util--aget state-obj 'btime))
           (white (lichess-util--aget obj 'white))
           (black (lichess-util--aget obj 'black))
           (state lichess-game--state))
+
+     ;; Update Clocks
+     (when (and wtime btime)
+       (setf (lichess-game-white-clock state)
+             (lichess-game--format-time wtime))
+       (setf (lichess-game-black-clock state)
+             (lichess-game--format-time btime))
+       (setf (lichess-game-white-time-ms state) wtime)
+       (setf (lichess-game-black-time-ms state) btime)
+       (setf (lichess-game-last-update-time state) (float-time)))
 
      ;; 1. Handle game setup
      (when (string= type "gameFull")
@@ -267,6 +419,7 @@ BUF is the target buffer, OBJ is the parsed JSON event."
   "Callback for NDJSON stream close.
 BUF, MSG-PREFIX, and MSG describe the event."
   (when (buffer-live-p buf)
+    (lichess-game--stop-timer buf)
     (lichess-core-with-buf
      buf (goto-char (point-max))
      (insert
