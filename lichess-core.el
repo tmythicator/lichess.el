@@ -2,7 +2,7 @@
 ;;
 ;; Copyright (C) 2025-2026  Alexandr Timchenko
 ;; URL: https://github.com/tmythicator/Lichess.el
-;; Version: 0.2
+;; Version: 0.3
 ;; Package-Requires: ((emacs "27.1"))
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 ;; See LICENSE for details.
@@ -43,7 +43,8 @@
  live-mode ;; bool
  perspective ;; 'white, 'black, or 'auto
  speed ;; string (e.g. "blitz")
- status) ;; string (e.g. "started")
+ status ;; string (e.g. "started")
+ selected-square) ;; symbol e.g. 'e2, or nil
 
 (defvar lichess-core-mode-map
   (let ((m (make-sparse-keymap)))

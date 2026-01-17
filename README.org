@@ -36,6 +36,7 @@ Lichess.el is designed to work seamlessly in both *GUI* and *terminal* (=emacs -
   - [X] Make moves with =m= (UCI format)
   - [X] Resign with =R=
   - [X] Propose/Accept draw with =D=
+  - [X] Mouse Support (v0.3): Click square to select/move pieces (GUI only).
 - Core
   - [X] Interactive umbrella dispatcher (=M-x lichess=)
   - [X] Diagnostics: token + active games (=M-x lichess-diagnose=)
@@ -49,7 +50,7 @@ Lichess.el is designed to work seamlessly in both *GUI* and *terminal* (=emacs -
   - [X] Submit moves and play
   - [X] Challenge API (against AI)
   - [X] MELPA packaging
-  - [X] GUI Rendering (SVG) vs TUI separation (lichess-board.el)
+  - [X] GUI Rendering (SVG) vs TUI separation (lichess-board.el) (v0.2)
   - [ ] UI Improvements
     - [ ] Opponent and user rendering (names, ratings)
     - [ ] Show remaining time (clock)

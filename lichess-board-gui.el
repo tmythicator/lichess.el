@@ -2,7 +2,7 @@
 ;;
 ;; Copyright (C) 2025-2026  Alexandr Timchenko
 ;; URL: https://github.com/tmythicator/Lichess.el
-;; Version: 0.2
+;; Version: 0.3
 ;; Package-Requires: ((emacs "27.1"))
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -39,9 +39,10 @@
          (filename (format "%s%s.svg" color type)))
     (expand-file-name filename lichess-board-gui-asset-path)))
 
-(defun lichess-board-gui-draw (pos &optional perspective)
+(defun lichess-board-gui-draw (pos &optional perspective highlights)
   "Render POS as an SVG image.
-PERSPECTIVE: \\='white, \\='black, or \\='auto."
+PERSPECTIVE: \\='white, \\='black, or \\='auto.
+HIGHLIGHTS: List of squares to highlight (e.g. \\='e4)."
   (let* ((sq-size 45) ;; Size of one square in pixels
          (board-size (* sq-size 8))
          (svg (svg-create board-size board-size))
@@ -72,7 +73,36 @@ PERSPECTIVE: \\='white, \\='black, or \\='auto."
            :fill color
            :stroke-width 0))))
 
-    ;; 2. Draw Pieces
+    ;; 2. Draw Highlights
+    (dolist (sq highlights)
+      (let* ((sq-str (symbol-name sq))
+             (file-char (aref sq-str 0))
+             (rank-char (aref sq-str 1))
+             (col (- file-char ?a))
+             (row (- 8 (- rank-char ?0)))
+             ;; Flip if needed
+             (view-c
+              (if flip
+                  (- 7 col)
+                col))
+             (view-r
+              (if flip
+                  (- 7 row)
+                row))
+             (x (* view-c sq-size))
+             (y (* view-r sq-size)))
+        (svg-rectangle
+         svg
+         x
+         y
+         sq-size
+         sq-size
+         :fill "yellow"
+         :fill-opacity "0.4"
+         :stroke "orange"
+         :stroke-width 2)))
+
+    ;; 3. Draw Pieces
     (let ((board (lichess-pos-board pos)))
       (dotimes (r 8)
         (dotimes (c 8)

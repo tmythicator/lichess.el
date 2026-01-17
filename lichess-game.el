@@ -2,7 +2,7 @@
 ;;
 ;; Copyright (C) 2025-2026  Alexandr Timchenko
 ;; URL: https://github.com/tmythicator/Lichess.el
-;; Version: 0.2
+;; Version: 0.3
 ;; Package-Requires: ((emacs "27.1"))
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 ;; See LICENSE for details.
@@ -45,6 +45,7 @@
     (define-key m (kbd "D") #'lichess-game-draw)
     (define-key m (kbd "K") #'lichess-game-castle-kingside)
     (define-key m (kbd "Q") #'lichess-game-castle-queenside)
+    (define-key m [mouse-1] #'lichess-game-mouse-handler)
     m))
 
 (define-derived-mode
@@ -68,11 +69,13 @@ All parameters are derived from the buffer-local `lichess-game--state'."
             (ignore-errors
               (lichess-fen-parse fen)))
            (perspective (lichess-game-perspective state))
-           (pos-info
-            (format "Position %d/%d" (1+ idx) (length hist))))
+           (pos-info (format "Position %d/%d" (1+ idx) (length hist)))
+           (highlights
+            (when-let ((sq (lichess-game-selected-square state)))
+              (list sq))))
       (when pos
         (lichess-board-render-to-buffer
-         pos perspective eval-str pos-info)))))
+         pos perspective eval-str pos-info highlights)))))
 
 (defun lichess-game-history-previous ()
   "Move to the previous position in game history."
@@ -139,7 +142,8 @@ immediately after the initial summary state."
                :eval-cache (make-hash-table)
                :current-idx -1
                :live-mode t
-               :perspective 'white)))
+               :perspective 'white
+               :selected-square nil)))
 
 (defun lichess-game--fmt-player-name (user-obj)
   "Extract a readable name from a Lichess player/user USER-OBJ."
@@ -535,6 +539,78 @@ MOVE should be in UCI format (e.g., e2e4)."
   "Castle Queenside (O-O-O)."
   (interactive)
   (lichess-game--do-castle 'queenside))
+
+(defun lichess-game-handle-click (coord)
+  "Handle a click on COORD (symbol like `e4') in the current game."
+  (when-let* ((state lichess-game--state)
+              (selected (lichess-game-selected-square state)))
+    (cond
+     ;; 1. Clicked the same square -> Deselect
+     ((eq coord selected)
+      (setf (lichess-game-selected-square state) nil)
+      (lichess-game-render))
+
+     ;; 2. Clicked a different square -> Attempt Move
+     (t
+      (let* ((move-str (format "%s%s" selected coord)))
+        (setf (lichess-game-selected-square state) nil)
+        (lichess-game-render)
+        (lichess-game-move move-str)))))
+
+  ;; If nothing selected, select the clicked square
+  (unless (and lichess-game--state
+               (lichess-game-selected-square lichess-game--state))
+    (when lichess-game--state
+      (setf (lichess-game-selected-square lichess-game--state) coord)
+      (lichess-game-render))))
+
+(defun lichess-game-mouse-handler (event)
+  "Handle mouse clicks on the board.
+EVENT is the mouse event."
+  (interactive "e")
+  (let*
+      ((posn (event-start event))
+       (obj (posn-object posn))
+       (xy (posn-object-x-y posn)) ;; (x . y) relative to object (image)
+       (col-row
+        (when (imagep obj)
+          ;; GUI (SVG image)
+          (let*
+              ((x (car xy))
+               (y (cdr xy))
+               (sq-size 45) ;; hardcoded for now, matches lichess-board-gui
+               (c (floor (/ x sq-size)))
+               (r (floor (/ y sq-size))))
+            (cons c r))))) ;; (col . row) 0-7
+
+    (when col-row
+      (let* ((c (car col-row))
+             (r (cdr col-row))
+             (state lichess-game--state)
+             (persp (or (lichess-game-perspective state) 'white))
+             ;; Adjust for perspective
+             ;; If black perspective, board is flipped.
+             ;; Visually (0,0) is top-left.
+             ;; White persp: (0,0) is a8. r=0->8. c=0->a. Correct?
+             ;; No, standard: r=0 is rank 8. c=0 is file a.
+             ;; lichess-board-gui: (x=0,y=0) -> (col=0, row=0) -> a8.
+             ;; White persp: r=0 is rank 8.
+             ;; Black persp: r=0 is rank 1.
+
+             (final-c
+              (if (eq persp 'black)
+                  (- 7 c)
+                c))
+             (final-r
+              (if (eq persp 'black)
+                  (- 7 r)
+                r))
+
+             (file (+ ?a final-c))
+             (rank (- 8 final-r))
+             (coord-sym (intern (format "%c%d" file rank))))
+
+        (lichess-game-handle-click coord-sym)))))
 
 (provide 'lichess-game)
 ;;; lichess-game.el ends here

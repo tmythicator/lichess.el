@@ -2,7 +2,7 @@
 ;;
 ;; Copyright (C) 2025-2026  Alexandr Timchenko
 ;; URL: https://github.com/tmythicator/Lichess.el
-;; Version: 0.2
+;; Version: 0.3
 ;; Package-Requires: ((emacs "27.1"))
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -115,7 +115,9 @@ PERSPECTIVE control rendering style."
                       (cells
                        (mapcar
                         (lambda (c)
-                          (funcall fmt (aref rowv c)))
+                          (let* ((ch (aref rowv c))
+                                 (str (funcall fmt ch)))
+                            str))
                         col-seq))
                       (rank-label (- 8 r)))
                  (format "|%s|%d"
