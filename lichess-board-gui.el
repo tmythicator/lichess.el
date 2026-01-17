@@ -23,6 +23,16 @@
   :type 'directory
   :group 'lichess)
 
+(defcustom lichess-board-gui-light-square-color "#f0d9b5"
+  "Color of the light squares on the board."
+  :type 'color
+  :group 'lichess)
+
+(defcustom lichess-board-gui-dark-square-color "#b58863"
+  "Color of the dark squares on the board."
+  :type 'color
+  :group 'lichess)
+
 (defun lichess-board-gui-available-p ()
   "Return t if SVG rendering is available."
   (and (display-graphic-p)
@@ -60,8 +70,8 @@ HIGHLIGHTS: List of squares to highlight (e.g. \\='e4)."
         (let* ((is-light (= (% (+ row col) 2) 0))
                (color
                 (if is-light
-                    "#f0d9b5"
-                  "#b58863")) ;; Standard wood theme
+                    lichess-board-gui-light-square-color
+                  lichess-board-gui-dark-square-color))
                (x (* col sq-size))
                (y (* row sq-size)))
           (svg-rectangle
