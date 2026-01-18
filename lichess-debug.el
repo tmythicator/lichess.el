@@ -103,7 +103,7 @@ ARGS are passed to `format`."
         buf (goto-char (point-max))
         (insert
          (format "[%s] — NDJSON event\n"
-                 (format-time-string "%H:%M:%S")))
+                 (format-time-string "%T")))
         (pp obj (current-buffer)) (insert "\n")))
      :on-close
      (lambda (_proc msg)
@@ -112,7 +112,7 @@ ARGS are passed to `format`."
         (insert
          (format
           "[%s] — %s\n"
-          (format-time-string "%H:%M:%S") (string-trim msg))))))
+          (format-time-string "%T") (string-trim msg))))))
     (pop-to-buffer buf)))
 
 ;;;###autoload
@@ -164,7 +164,7 @@ ARGS are passed to `format`."
              ((eq x :hr)
               (insert (make-string 70 ?─) "\n"))
              ((eq x :ts)
-              (insert (format-time-string "[%H:%M:%S] ")))
+              (insert (format-time-string "[%T] ")))
              ((eq x :pp)
               (pp (pop xs) (current-buffer)))
              ((stringp x)

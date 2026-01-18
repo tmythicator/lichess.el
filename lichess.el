@@ -55,15 +55,19 @@
 (defun lichess ()
   "Dispatch Lichess commands."
   (interactive)
-  (let* ((choices
+  (let* ((base-choices
           '(("Lichess TV: Show channels" . lichess-tv)
             ("Lichess: Watch game" . lichess-game-watch)
             ("Lichess: Play against AI" . lichess-ai-challenge)
-            ("(Debug) Diagnose account" . lichess-debug-diagnose)
-            ("(Debug) NDJSON Stream" . lichess-debug-game-stream)
-            ("(Debug) TV: JSON channels" . lichess-debug-tv)
-            ("(Debug) Render FEN position" . lichess-fen-show)
             ("Settings: Set Board Style" . lichess-set-style)))
+         (debug-choices
+          (if (locate-library "lichess-debug")
+              '(("(Debug) Diagnose account" . lichess-debug-diagnose)
+                ("(Debug) NDJSON Stream" . lichess-debug-game-stream)
+                ("(Debug) TV: JSON channels" . lichess-debug-tv)
+                ("(Debug) Render FEN position" . lichess-fen-show))
+            nil))
+         (choices (append base-choices debug-choices))
          (pick
           (completing-read "Lichess: " (mapcar #'car choices) nil t))
          (cmd (cdr (assoc pick choices))))
@@ -122,12 +126,12 @@ Warns if \"gui\" is selected but unavailable or missing assets."
        ((and (boundp 'lichess-fen--current-pos)
              lichess-fen--current-pos
              (fboundp 'lichess-fen-refresh))
-        (funcall 'lichess-fen-refresh))
+        (funcall #'lichess-fen-refresh))
 
        ((and (boundp 'lichess-game--current-idx)
              lichess-game--current-idx
              (fboundp 'lichess-game-refresh))
-        (funcall 'lichess-game-refresh))))))
+        (funcall #'lichess-game-refresh))))))
 
 (provide 'lichess)
 ;;; lichess.el ends here

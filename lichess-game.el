@@ -252,7 +252,7 @@ immediately after the initial summary state."
 ID is the game, BUF is the buffer, MSG-PREFIX for status."
   (lichess-core-with-buf
    buf
-   (unless (eq major-mode 'lichess-game-buffer-mode)
+   (unless (derived-mode-p 'lichess-game-buffer-mode)
      (lichess-game-buffer-mode))
    (lichess-game--reset-local-vars)
    (setf (lichess-game-id lichess-game--state) id)
@@ -424,7 +424,7 @@ BUF, MSG-PREFIX, and MSG describe the event."
      buf (goto-char (point-max))
      (insert
       (format "\n[%s] — %s disconnected: %s\n"
-              (format-time-string "%H:%M:%S")
+              (format-time-string "%T")
               msg-prefix
               (string-trim msg))))))
 
