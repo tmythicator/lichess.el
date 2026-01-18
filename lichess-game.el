@@ -73,21 +73,8 @@ All parameters are derived from the buffer-local `lichess-game--state'."
            (highlights
             (when-let ((sq (lichess-game-selected-square state)))
               (list sq)))
-           ;; Construct Preamble: "Name (Clock) vs Name (Clock)"
-           (w-name
-            (lichess-game--fmt-player-name
-             (lichess-game-white state)))
-           (b-name
-            (lichess-game--fmt-player-name
-             (lichess-game-black state)))
-           (w-clock (lichess-game-white-clock state))
-           (b-clock (lichess-game-black-clock state))
-           (preamble
-            (format "%s (%s) vs %s (%s)"
-                    w-name
-                    w-clock
-                    b-name
-                    b-clock)))
+           ;; Construct Preamble: Names, Clocks, Result
+           (preamble (lichess-game--format-header state)))
       (when pos
         (lichess-board-render-to-buffer
          pos perspective eval-str pos-info highlights preamble)))))
@@ -214,9 +201,33 @@ immediately after the initial summary state."
               (setf (lichess-game-black-clock state)
                     (lichess-game--format-time new-b))
 
-              ;; Only re-render if we actually changed the minutes/seconds string logic
-              ;; But renders are fast, let's just render.
-              (lichess-game-render))))))))
+              ;; Optimization: Try to update clock in-place to avoid flickering
+              (let ((updated-w
+                     (lichess-game--update-clock-in-place
+                      'white (lichess-game-white-clock state)))
+                    (updated-b
+                     (lichess-game--update-clock-in-place
+                      'black (lichess-game-black-clock state))))
+                ;; If in-place update failed (e.g. text props lost), do full render
+                (unless (and updated-w updated-b)
+                  (lichess-game-render))))))))))
+
+(defun lichess-game--update-clock-in-place (side new-text)
+  "Update the clock text for SIDE (`white' or `black')
+to NEW-TEXT in current buffer.
+Returns t if successful, nil otherwise."
+  (save-excursion
+    (goto-char (point-min))
+    (let ((found
+           (text-property-search-forward 'lichess-clock side t)))
+      (if found
+          (let ((inhibit-read-only t))
+            (delete-region
+             (prop-match-beginning found) (prop-match-end found))
+            (insert
+             (propertize new-text 'lichess-clock side 'face 'bold))
+            t)
+        nil))))
 
 (defun lichess-game--start-timer (buf)
   "Start the clock ticker for BUF."
@@ -236,17 +247,6 @@ immediately after the initial summary state."
           (cancel-timer (lichess-game-timer lichess-game--state))
           (setf (lichess-game-timer lichess-game--state) nil))))))
 
-(defun lichess-game--fmt-player-name (user-obj)
-  "Extract a readable name from a Lichess player/user USER-OBJ."
-  (or (lichess-util--aget user-obj 'name)
-      (lichess-util--aget user-obj 'username)
-      (lichess-util--aget user-obj 'id)
-      (when-let ((lvl (lichess-util--aget user-obj 'aiLevel)))
-        (format "Stockfish level %d" lvl))
-      (when-let ((ai (lichess-util--aget user-obj 'ai)))
-        (format "Stockfish level %d" ai))
-      "Anonymous"))
-
 (defun lichess-game--stream-on-open (id buf msg-prefix _proc _buf)
   "Callback for NDJSON stream open.
 ID is the game, BUF is the buffer, MSG-PREFIX for status."
@@ -265,74 +265,42 @@ ID is the game, BUF is the buffer, MSG-PREFIX for status."
 BUF is the target buffer, OBJ is the parsed JSON event."
   (lichess-core-with-buf
    buf
-   (let ((fen (lichess-game--extract-fen obj))
-         (white (lichess-util--aget obj 'white))
-         (black (lichess-util--aget obj 'black))
-         ;; Extract time sources independently
-         (wc-sec (lichess-util--aget obj 'wc))
-         (bc-sec (lichess-util--aget obj 'bc))
-         (wc-clock
-          (lichess-util--aget (lichess-util--aget obj 'clock) 'white))
-         (bc-clock
-          (lichess-util--aget (lichess-util--aget obj 'clock) 'black))
-         ;; Fallback to state.wtime (ms) if needed
-         (wtime-state
-          (lichess-util--aget (lichess-util--aget obj 'state) 'wtime))
-         (btime-state
-          (lichess-util--aget (lichess-util--aget obj 'state) 'btime))
-
-
-         (state lichess-game--state))
+   (let*
+       ((fen (lichess-game--extract-fen obj))
+        (players (or (lichess-util--aget obj 'players) obj))
+        (white (lichess-util--aget players 'white))
+        (black (lichess-util--aget players 'black))
+        (state lichess-game--state)
+        ;; Capture live mode BEFORE status update (which might clear it)
+        (was-live (lichess-game-live-mode state)))
 
      ;; Update names if found (usually in the first message)
      (when (or white black)
-       (let ((w-name (lichess-game--fmt-player-name white))
-             (b-name (lichess-game--fmt-player-name black)))
-         (setf
-          (lichess-game-white state) white
-          (lichess-game-black state) black)
-         (goto-char (point-max))
-         (insert
-          (format "\nWatching: %s (W) vs %s (B)\n" w-name b-name))))
+       (setf
+        (lichess-game-white state) white
+        (lichess-game-black state) black)
+       (lichess-game--insert-preamble buf white black))
+
+     ;; Update Status/Winner
+     (lichess-game--update-status state obj buf)
 
      ;; Update Clocks
-     ;; Prioritize 'wc' (seconds) -> convert to ms
-     ;; Then 'clock.white' (ms)
-     ;; Then 'state.wtime' (ms)
-     (let ((final-w
-            (cond
-             (wc-sec
-              (* wc-sec 1000))
-             (wc-clock
-              wc-clock)
-             (wtime-state
-              wtime-state)))
-           (final-b
-            (cond
-             (bc-sec
-              (* bc-sec 1000))
-             (bc-clock
-              bc-clock)
-             (btime-state
-              btime-state))))
+     (lichess-game--update-clocks state obj)
 
-       (when (numberp final-w)
-         (setf (lichess-game-white-clock state)
-               (lichess-game--format-time final-w))
-         (setf (lichess-game-white-time-ms state) final-w))
-       (when (numberp final-b)
-         (setf (lichess-game-black-clock state)
-               (lichess-game--format-time final-b))
-         (setf (lichess-game-black-time-ms state) final-b))
+     (setf (lichess-game-last-update-time state) (float-time))
 
-       (setf (lichess-game-last-update-time state) (float-time)))
-
-     ;; Render FEN
-     (when fen
-       (lichess-game--fen-history-vpush fen)
-       (when (lichess-game-live-mode state)
-         (setf (lichess-game-current-idx state)
-               (1- (length (lichess-game-fen-history state))))
+     ;; Render FEN or Status
+     (if fen
+         (progn
+           (lichess-game--fen-history-vpush fen)
+           ;; If we were live, or still are, update index to follow game.
+           ;; If game just ended, was-live is true, live-mode is false.
+           (when (or was-live (lichess-game-live-mode state))
+             (setf (lichess-game-current-idx state)
+                   (1- (length (lichess-game-fen-history state))))
+             (lichess-game-render)))
+       ;; If no FEN (e.g. termination event), render if status changed
+       (when (lichess-util--aget obj 'status)
          (lichess-game-render))))))
 
 (defun lichess-game--board-on-event (buf obj)
@@ -343,21 +311,16 @@ BUF is the target buffer, OBJ is the parsed JSON event."
    (let* ((type (lichess-util--aget obj 'type))
           (state-obj (or (lichess-util--aget obj 'state) obj))
           (moves (lichess-util--aget state-obj 'moves))
-          (wtime (lichess-util--aget state-obj 'wtime))
-          (btime (lichess-util--aget state-obj 'btime))
           (white (lichess-util--aget obj 'white))
           (black (lichess-util--aget obj 'black))
           (state lichess-game--state))
 
      ;; Update Clocks
-     (when (and wtime btime)
-       (setf (lichess-game-white-clock state)
-             (lichess-game--format-time wtime))
-       (setf (lichess-game-black-clock state)
-             (lichess-game--format-time btime))
-       (setf (lichess-game-white-time-ms state) wtime)
-       (setf (lichess-game-black-time-ms state) btime)
-       (setf (lichess-game-last-update-time state) (float-time)))
+     (lichess-game--update-clocks state obj)
+     (setf (lichess-game-last-update-time state) (float-time))
+
+     ;; Update Status/Winner
+     (lichess-game--update-status state state-obj buf)
 
      ;; 1. Handle game setup
      (when (string= type "gameFull")
@@ -368,8 +331,7 @@ BUF is the target buffer, OBJ is the parsed JSON event."
               (variant
                (lichess-util--aget
                 (lichess-util--aget obj 'variant) 'key))
-              (w-name (lichess-game--fmt-player-name white))
-              (b-name (lichess-game--fmt-player-name black))
+
               (w-id (lichess-util--aget white 'id))
               (b-id (lichess-util--aget black 'id))
               ;; Determine my color by matching username/ID
@@ -377,11 +339,17 @@ BUF is the target buffer, OBJ is the parsed JSON event."
                (and (boundp 'lichess-username) lichess-username))
               (am-white
                (or (and curr-user
-                        (string-match-p curr-user (or w-name "")))
+                        (lichess-util--aget white 'name)
+                        (string-match-p
+                         curr-user
+                         (or (lichess-util--aget white 'name) "")))
                    (and w-id curr-user (string= w-id curr-user))))
               (am-black
                (or (and curr-user
-                        (string-match-p curr-user (or b-name "")))
+                        (lichess-util--aget black 'name)
+                        (string-match-p
+                         curr-user
+                         (or (lichess-util--aget black 'name) "")))
                    (and b-id curr-user (string= b-id curr-user))))
               (my-col
                (cond
@@ -399,21 +367,23 @@ BUF is the target buffer, OBJ is the parsed JSON event."
           (lichess-game-black state) black
           (lichess-game-my-color state) my-col
           (lichess-game-id state) (lichess-util--aget obj 'id))
-         (goto-char (point-max))
-         (insert
-          (format
-           "\nGame (Board API): %s (W) vs %s (B) [%s] (You: %s)\n"
-           w-name b-name variant (or my-col "Spectator")))))
+         (lichess-game--insert-preamble buf white black
+                                        variant
+                                        my-col)))
 
-     ;; 2. Reconstruct FEN and update history
-     (when-let ((ipos (lichess-game-initial-pos state)))
-       (let* ((current-pos (lichess-fen-apply-moves ipos moves))
-              (current-fen (lichess-fen-pos->fen current-pos)))
-         (lichess-game--fen-history-vpush current-fen)
-         (when (lichess-game-live-mode state)
-           (setf (lichess-game-current-idx state)
-                 (1- (length (lichess-game-fen-history state))))
-           (lichess-game-render)))))))
+     ;; 2. Reconstruct FEN / Check Status
+     (if (lichess-util--aget state-obj 'moves)
+         (when-let ((ipos (lichess-game-initial-pos state)))
+           (let* ((current-pos (lichess-fen-apply-moves ipos moves))
+                  (current-fen (lichess-fen-pos->fen current-pos)))
+             (lichess-game--fen-history-vpush current-fen)
+             (when (lichess-game-live-mode state)
+               (setf (lichess-game-current-idx state)
+                     (1- (length (lichess-game-fen-history state))))
+               (lichess-game-render))))
+       ;; No moves, but status update?
+       (when (lichess-util--aget state-obj 'status)
+         (lichess-game-render))))))
 
 (defun lichess-game--stream-on-close (buf msg-prefix _proc msg)
   "Callback for NDJSON stream close.
@@ -763,6 +733,131 @@ EVENT is the mouse event."
              (coord-sym (intern (format "%c%d" file rank))))
 
         (lichess-game-handle-click coord-sym)))))
+
+(defun lichess-game--update-status (state obj buf)
+  "Update game status and winner from OBJ into STATE.
+Stop the clock in BUF if the game ended."
+  (let* ((raw-status (lichess-util--aget obj 'status))
+         (status
+          (if (listp raw-status)
+              (lichess-util--aget raw-status 'name)
+            raw-status))
+         (winner (lichess-util--aget obj 'winner)))
+    (when status
+      (setf (lichess-game-status state) status))
+    (when winner
+      ;; 'winner' in JSON is usually "white" or "black" string
+      (setf (lichess-game-winner state) (intern winner)))
+
+    ;; Stop clock if game ended
+    (when (and status (not (string= status "started")))
+      (setf (lichess-game-live-mode state) nil)
+      (lichess-game--stop-timer buf))))
+
+(defun lichess-game--update-clocks (state obj)
+  "Update clock times in STATE from OBJ.
+Handles various formats: `wc' (seconds), `clock.white' (ms),
+or `state.wtime' (ms)."
+  (let* ((wc (lichess-util--aget obj 'wc))
+         (bc (lichess-util--aget obj 'bc))
+         (clock (lichess-util--aget obj 'clock))
+         (cw (lichess-util--aget clock 'white))
+         (cb (lichess-util--aget clock 'black))
+         (st (or (lichess-util--aget obj 'state) obj))
+         (sw (lichess-util--aget st 'wtime))
+         (sb (lichess-util--aget st 'btime))
+
+         (final-w
+          (cond
+           (wc
+            (* wc 1000))
+           (cw
+            cw)
+           (sw
+            sw)))
+         (final-b
+          (cond
+           (bc
+            (* bc 1000))
+           (cb
+            cb)
+           (sb
+            sb))))
+
+    (when (numberp final-w)
+      (setf (lichess-game-white-clock state)
+            (lichess-game--format-time final-w))
+      (setf (lichess-game-white-time-ms state) final-w))
+    (when (numberp final-b)
+      (setf (lichess-game-black-clock state)
+            (lichess-game--format-time final-b))
+      (setf (lichess-game-black-time-ms state) final-b))))
+
+(defun lichess-game--format-header (state)
+  "Format the game header string (names, clocks, result) from STATE."
+  (let* ((w-name
+          (lichess-util-fmt-user-obj (lichess-game-white state)))
+         (b-name
+          (lichess-util-fmt-user-obj (lichess-game-black state)))
+         (w-clock (lichess-game-white-clock state))
+         (b-clock (lichess-game-black-clock state))
+         (w-clock-str
+          (propertize (or w-clock "--:--")
+                      'lichess-clock
+                      'white
+                      'face
+                      'bold))
+         (b-clock-str
+          (propertize (or b-clock "--:--")
+                      'lichess-clock
+                      'black
+                      'face
+                      'bold))
+         (status (lichess-game-status state))
+         (winner (lichess-game-winner state))
+         (result-str
+          (cond
+           ((or (string= status "mate")
+                (string= status "resign")
+                (string= status "outoftime")
+                (string= status "draw")
+                (string= status "stalemate"))
+            (let ((score
+                   (cond
+                    ((eq winner 'white)
+                     "1-0")
+                    ((eq winner 'black)
+                     "0-1")
+                    (t
+                     "1/2-1/2"))))
+              (format "  [%s %s]" score status)))
+           (t
+            ""))))
+    (format "%s (%s) vs %s (%s)%s"
+            w-name
+            w-clock-str
+            b-name
+            b-clock-str
+            result-str)))
+
+(defun lichess-game--insert-preamble
+    (buf white black &optional variant my-color)
+  "Insert the game preamble into BUF.
+WHITE and BLACK are player objects.
+VARIANT is the game variant string (optional).
+MY-COLOR is the user's color (`white', `black', or nil) (optional)."
+  (lichess-core-with-buf
+   buf
+   (let ((w-name (lichess-util-fmt-user-obj white))
+         (b-name (lichess-util-fmt-user-obj black)))
+     (goto-char (point-max))
+     (if variant
+         (insert
+          (format
+           "\nGame (Board API): %s (W) vs %s (B) [%s] (You: %s)\n"
+           w-name b-name variant (or my-color "Spectator")))
+       (insert
+        (format "\nWatching: %s (W) vs %s (B)\n" w-name b-name))))))
 
 (provide 'lichess-game)
 ;;; lichess-game.el ends here

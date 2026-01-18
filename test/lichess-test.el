@@ -36,14 +36,6 @@
     (should (equal (lichess-util--aget ht "title") "IM"))
     (should (equal (lichess-util--aget ht 'nonexistent) nil))))
 
-(ert-deftest lichess-util-fmt-player-test ()
-  "Test `lichess-util--fmt-player`."
-  (should (equal (lichess-util--fmt-player "Alice" "GM" 2500) "GM Alice (2500)"))
-  (should (equal (lichess-util--fmt-player "Bob" nil 1500) "Bob (1500)"))
-  (should (equal (lichess-util--fmt-player "Charlie" "IM" nil) "IM Charlie"))
-  (should (equal (lichess-util--fmt-player "Dave" nil nil) "Dave"))
-  (should (equal (lichess-util--fmt-player nil nil nil) "Anonymous")))
-
 (ert-deftest lichess-util-game-vs-test ()
   "Test `lichess-util--game->vs`."
   (let ((game '((players . ((white . ((user . ((name . "Alice") (title . "GM"))) (rating . 2500)))

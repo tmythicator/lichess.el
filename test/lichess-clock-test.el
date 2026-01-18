@@ -96,3 +96,88 @@
         (should (string= (lichess-game-white-clock st) "00:09"))
         ;; Black should be unchanged "00:10"
         (should (string= (lichess-game-black-clock st) "00:10"))))))
+
+(ert-deftest lichess-game-tick-in-place-test ()
+  "Test that tick updates the clock string in-place."
+  (with-temp-buffer
+    (lichess-game-buffer-mode)
+    (lichess-game--reset-local-vars)
+    (cl-letf (((symbol-function 'float-time) (lambda () 10000.0)))
+      (let* ((st lichess-game--state)
+             (fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"))
+        
+        ;; Setup initial state
+        (setf (lichess-game-white-time-ms st) 10000)
+        (setf (lichess-game-black-time-ms st) 10000)
+        (setf (lichess-game-white-clock st) "00:10")
+        (setf (lichess-game-black-clock st) "00:10")
+        (setf (lichess-game-last-update-time st) 9999.0)
+        (setf (lichess-game-fen-history st) (vector fen))
+        (setf (lichess-game-current-idx st) 0)
+        (setf (lichess-game-live-mode st) t)
+
+        ;; Manually insert text with expected properties (simulating render)
+        (let ((inhibit-read-only t))
+          (insert "White (")
+          (insert (propertize "00:10" 'lichess-clock 'white))
+          (insert ") vs Black (")
+          (insert (propertize "00:10" 'lichess-clock 'black))
+          (insert ")\n"))
+
+        ;; Run Tick -> Should update White to 00:09 IN PLACE
+        (lichess-game--tick (current-buffer))
+
+        (goto-char (point-min))
+        ;; Verify content changed
+        (should (search-forward "White (00:09)" nil t))
+
+        ;; Verify in-place update worked
+        (goto-char (point-min))
+        (let ((match (text-property-search-forward 'lichess-clock 'white t)))
+          (should match)
+          (should (string= (buffer-substring-no-properties (prop-match-beginning match) (prop-match-end match)) "00:09")))))))
+
+(ert-deftest lichess-game-termination-test ()
+  "Test game termination handling (status/winner)."
+  (with-temp-buffer
+    (lichess-game-buffer-mode)
+    (lichess-game--reset-local-vars)
+    (let* ((st lichess-game--state)
+           (event '((type . "gameFull")
+                    (id . "termTest")
+                    (status . "started")
+                    )))
+      ;; Set initial state with valid history/index so render works
+      (setf (lichess-game-live-mode st) t)
+      (setf (lichess-game-fen-history st) (vector "startpos"))
+      (setf (lichess-game-current-idx st) 0)
+      
+      ;; 1. Simulate Stream Event with termination
+      (let ((term-event '((status . "resign") (winner . "white"))))
+        (lichess-game--stream-on-event (current-buffer) term-event)
+        
+        (should (string= (lichess-game-status st) "resign"))
+        (should (eq (lichess-game-winner st) 'white))
+        (should (null (lichess-game-live-mode st)))
+        ;; Verify render happened (result string present)
+        (goto-char (point-min))
+        (should (search-forward "[1-0 resign]" nil t)))
+        
+      ;; 2. Simulate Board API Event with termination
+      ;; Reset
+      (setf (lichess-game-live-mode st) t)
+      (let ((term-event-board '((type . "gameState") (status . "mate") (winner . "black"))))
+        (lichess-game--board-on-event (current-buffer) term-event-board)
+        
+        (should (string= (lichess-game-status st) "mate"))
+        (should (eq (lichess-game-winner st) 'black))
+        (should (null (lichess-game-live-mode st)))))))
+
+(ert-deftest lichess-game-status-object-test ()
+  "Test that status update handles objects (e.g. {id: 35, name: 'outoftime'})."
+  (let ((state (make-lichess-game))
+        (obj '((status . ((id . 35) (name . "outoftime")))
+               (winner . "white"))))
+    (lichess-game--update-status state obj (current-buffer))
+    (should (string= (lichess-game-status state) "outoftime"))
+    (should (eq (lichess-game-winner state) 'white))))

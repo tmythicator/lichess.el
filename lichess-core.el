@@ -45,6 +45,7 @@
  speed ;; string (e.g. "blitz")
  status ;; string (e.g. "started")
  selected-square ;; symbol e.g. 'e2, or nil
+ winner ;; 'white, 'black, or nil
 
  ;;; Clock
  white-clock ;; string "MM:SS"
