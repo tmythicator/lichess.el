@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4] - 2026-01-18
+
+### Changed
+
+- **Package Distribution**: `lichess-debug.el` is now excluded from standard installs, reducing clutter for users while keeping tools available for contributors.
+- **Code Quality**: Applied sharp-quoting for function calls and improved internal time formatting to use `%T`.
+- **Assets**: Explicitly defined asset inclusion in package recipes (MELPA).
+
 ## [0.3] - 2026-01-17
 
 ### Added

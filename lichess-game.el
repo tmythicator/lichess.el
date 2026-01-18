@@ -2,7 +2,7 @@
 ;;
 ;; Copyright (C) 2025-2026  Alexandr Timchenko
 ;; URL: https://github.com/tmythicator/Lichess.el
-;; Version: 0.3
+;; Version: 0.4
 ;; Package-Requires: ((emacs "27.1"))
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 ;; See LICENSE for details.
@@ -423,10 +423,9 @@ BUF, MSG-PREFIX, and MSG describe the event."
     (lichess-core-with-buf
      buf (goto-char (point-max))
      (insert
-      (format "\n[%s] — %s disconnected: %s\n"
-              (format-time-string "%T")
-              msg-prefix
-              (string-trim msg))))))
+      (format
+       "\n[%s] — %s disconnected: %s\n"
+       (format-time-string "%T") msg-prefix (string-trim msg))))))
 
 ;;;###autoload
 (defun lichess-game-watch (id)

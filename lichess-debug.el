@@ -2,7 +2,7 @@
 ;;
 ;; Copyright (C) 2025-2026  Alexandr Timchenko
 ;; URL: https://github.com/tmythicator/Lichess.el
-;; Version: 0.3
+;; Version: 0.4
 ;; Package-Requires: ((emacs "27.1"))
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 ;; See LICENSE for details.
@@ -102,17 +102,15 @@ ARGS are passed to `format`."
        (lichess-core-with-buf
         buf (goto-char (point-max))
         (insert
-         (format "[%s] — NDJSON event\n"
-                 (format-time-string "%T")))
+         (format "[%s] — NDJSON event\n" (format-time-string "%T")))
         (pp obj (current-buffer)) (insert "\n")))
      :on-close
      (lambda (_proc msg)
        (lichess-core-with-buf
         buf (goto-char (point-max))
         (insert
-         (format
-          "[%s] — %s\n"
-          (format-time-string "%T") (string-trim msg))))))
+         (format "[%s] — %s\n"
+                 (format-time-string "%T") (string-trim msg))))))
     (pop-to-buffer buf)))
 
 ;;;###autoload
