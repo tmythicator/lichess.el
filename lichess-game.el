@@ -76,8 +76,10 @@ All parameters are derived from the buffer-local `lichess-game--state'."
            ;; Construct Preamble: Names, Clocks, Result
            (preamble (lichess-game--format-header state)))
       (when pos
+        (setf (lichess-pos-eval pos) eval-str)
+        (setf (lichess-pos-info pos) pos-info)
         (lichess-board-render-to-buffer
-         pos perspective eval-str pos-info highlights preamble)))))
+         pos perspective highlights preamble)))))
 
 (defun lichess-game-history-previous ()
   "Move to the previous position in game history."

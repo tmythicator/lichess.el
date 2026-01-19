@@ -161,12 +161,13 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
 (ert-deftest lichess-fen-render-board-eval-test ()
   "Test `lichess-board-tui-draw` with evaluation bar."
   (let* ((fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-         (pos (lichess-fen-parse fen))
-         (render (lichess-board-tui-draw pos "ascii" 'white "0.0")))
-    ;; Check if "Eval" header and evaluation blocks are present
-    (should (string-match "Eval" render))
-    (should (string-match "░" render))
-    (should (string-match "█" render))))
+         (pos (lichess-fen-parse fen)))
+    (setf (lichess-pos-eval pos) "0.0")
+    (let ((render (lichess-board-tui-draw pos "ascii" 'white)))
+      ;; Check if "Eval" header and evaluation blocks are present
+      (should (string-match "Eval" render))
+      (should (string-match "░" render))
+      (should (string-match "█" render)))))
 
 (ert-deftest lichess-face-definition-test ()
   "Test that `lichess-core-board-face' is defined and inherits from `fixed-pitch'."
@@ -205,14 +206,14 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
     ;; Case 1: Style "gui", GUI available -> calls GUI
     (cl-letf (((symbol-function 'lichess-board-gui-available-p) (lambda () t))
               ((symbol-function 'lichess-board-gui-draw) (lambda (_ _ _) "GUI"))
-              ((symbol-function 'lichess-board-tui-draw) (lambda (_ _ _ _) "TUI")))
+              ((symbol-function 'lichess-board-tui-draw) (lambda (_ _ _) "TUI")))
       (let ((lichess-board-gui-preferred-style "gui"))
         (should (equal (lichess-board-draw pos) "GUI"))))
 
     ;; Case 2: Style "gui", GUI NOT available -> Fallback to TUI (Unicode)
     (cl-letf (((symbol-function 'lichess-board-gui-available-p) (lambda () nil))
               ((symbol-function 'lichess-board-gui-draw) (lambda (_ _ _) "GUI"))
-              ((symbol-function 'lichess-board-tui-draw) (lambda (_ _ _ _) "TUI")))
+              ((symbol-function 'lichess-board-tui-draw) (lambda (_ _ _) "TUI")))
       (let ((lichess-board-gui-preferred-style "gui")
             (lichess-board-tui-preferred-style "unicode"))
         (should (equal (lichess-board-draw pos) "TUI"))))
@@ -220,7 +221,7 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
     ;; Case 3: Style "ascii" -> calls TUI
     (cl-letf (((symbol-function 'lichess-board-gui-available-p) (lambda () t))
               ((symbol-function 'lichess-board-gui-draw) (lambda (_ _ _) "GUI"))
-              ((symbol-function 'lichess-board-tui-draw) (lambda (_ _ _ _) "TUI")))
+              ((symbol-function 'lichess-board-tui-draw) (lambda (_ _ _) "TUI")))
       (let ((lichess-board-tui-preferred-style "ascii")
             (lichess-board-gui-preferred-style "ascii"))
         (should (equal (lichess-board-draw pos) "TUI"))))))

@@ -52,10 +52,10 @@ Lichess.el is designed to work seamlessly in both *GUI* and *terminal* (=emacs -
   - [X] MELPA packaging
   - [X] GUI Rendering (SVG) vs TUI separation (lichess-board.el) (v0.2)
   - [ ] UI Improvements
-    - [ ] Opponent and user rendering (names, ratings)
+    - [X] Opponent and user rendering (names, ratings)
     - [X] Show remaining time (clock)
     - [ ] On-screen keybindings info
-    - [ ] General status updates
+    - [X] General status updates
   - [ ] Puzzles & tactics
 * Installation
 Clone and add to your load path:

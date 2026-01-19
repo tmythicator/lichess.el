@@ -28,12 +28,11 @@ Values: \"unicode\", \"ascii\"."
   :type '(choice (const "unicode") (const "ascii"))
   :group 'lichess)
 
-(defun lichess-board-draw
-    (pos &optional perspective eval-str highlights)
+(defun lichess-board-draw (pos &optional perspective highlights)
   "Render POS as a string.
 PERSPECTIVE: \`white', \`black', \`auto'.
-EVAL-STR: Optional evaluation string.
-HIGHLIGHTS: List of squares to highlight."
+HIGHLIGHTS: List of squares to highlight.
+EVAL and INFO are read from POS."
   (let* ((gui-avail (lichess-board-gui-available-p))
          (style
           (if gui-avail
@@ -45,8 +44,7 @@ HIGHLIGHTS: List of squares to highlight."
              (if (string= style "gui")
                  "unicode"
                style)))
-        (lichess-board-tui-draw
-         pos tui-style perspective eval-str)))))
+        (lichess-board-tui-draw pos tui-style perspective)))))
 
 (defun lichess-board-draw-heading (pos &optional perspective)
   "Render heading string for POS using global style and PERSPECTIVE."
@@ -64,10 +62,9 @@ HIGHLIGHTS: List of squares to highlight."
     (lichess-board-tui-draw-heading pos display-style perspective)))
 
 (defun lichess-board-insert-board
-    (pos &optional perspective eval-str highlights)
+    (pos &optional perspective highlights)
   "Insert the board rendering POS into the current buffer at point.
 PERSPECTIVE: `white`, `black`, or `auto`.
-EVAL-STR: Optional evaluation string.
 HIGHLIGHTS: List of squares to highlight.
 Handles face application for TUI modes, avoiding interference with GUI SVGs."
   (let* ((gui-avail (lichess-board-gui-available-p))
@@ -83,8 +80,7 @@ Handles face application for TUI modes, avoiding interference with GUI SVGs."
                    (if (string= style "gui")
                        "unicode"
                      style)))
-              (lichess-board-tui-draw
-               pos tui-style perspective eval-str))))
+              (lichess-board-tui-draw pos tui-style perspective))))
          (start (point)))
     (insert board-str)
     (unless gui-p
@@ -92,15 +88,14 @@ Handles face application for TUI modes, avoiding interference with GUI SVGs."
        start (point) '(face lichess-core-board-face)))))
 
 (defun lichess-board-render-to-buffer
-    (pos &optional perspective eval-str info-str highlights preamble)
+    (pos &optional perspective highlights preamble)
   "Clear and render POS to the current buffer.
 Standardizes rendering for both game and FEN views.
 - POS: `lichess-pos` struct.
 - PERSPECTIVE: `white`, `black`, or `auto`.
-- EVAL-STR: Optional evaluation string.
-- INFO-STR: Optional extra text to append.
 - HIGHLIGHTS: List of squares to highlight.
-- PREAMBLE: Optional text to insert at the very top."
+- PREAMBLE: Optional text to insert at the very top.
+Uses `eval` and `info` from POS if present."
   (let ((inhibit-read-only t))
     (erase-buffer)
 
@@ -112,12 +107,12 @@ Standardizes rendering for both game and FEN views.
     (insert (lichess-board-draw-heading pos perspective))
 
     ;; 2. Board
-    (lichess-board-insert-board pos perspective eval-str highlights)
+    (lichess-board-insert-board pos perspective highlights)
     (insert "\n")
 
     ;; 3. Info/Footer
-    (when info-str
-      (insert "\n" info-str))
+    (when (lichess-pos-info pos)
+      (insert "\n" (lichess-pos-info pos)))
 
     ;; 4. Reset cursor
     (goto-char (point-min))))

@@ -26,7 +26,9 @@
  castle ;; string like "KQkq" or "-"
  ep ;; (row . col) or nil
  halfmove ;; int
- fullmove) ;; int
+ fullmove ;; int
+ eval ;; string (optional evaluation)
+ info) ;; string (optional footer info)
 
 (cl-defstruct
  lichess-game "State for a Lichess game."

@@ -69,13 +69,13 @@ PERSPECTIVE determines the view."
           (aset bar i advantage-char))))
     (append '("Eval") (append bar nil))))
 
-(defun lichess-board-tui-draw
-    (pos &optional style perspective eval-str)
+(defun lichess-board-tui-draw (pos &optional style perspective)
   "Return a board string for POS.
 STYLE is \"ascii\" or \"unicode\".
-If EVAL-STR is non-nil, render a vertical evaluation bar next to the board.
-PERSPECTIVE control rendering style."
+PERSPECTIVE control rendering style.
+Reads `eval` from POS if present."
   (let* ((unicode (string= style "unicode"))
+         (eval-str (lichess-pos-eval pos))
          (board-lines
           ;; First, generate the board as a list of strings
           (let* ((b (lichess-pos-board pos))
