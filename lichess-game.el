@@ -22,6 +22,7 @@
 (require 'lichess-util)
 (require 'lichess-fen)
 (require 'lichess-board)
+(require 'text-property-search)
 
 (defvar lichess-game--stream nil
   "Current `lichess-http-stream' for a game NDJSON, or nil when not running.")
