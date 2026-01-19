@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5] - 2026-01-19
+
+### Changed
+
+- **Board Rendering**: Refactored internal rendering to encapsulate `eval` and `info` metadata within the `lichess-pos` struct.
+- **Documentation**: Updated `lichess.el` file description and commentary.
+
 ## [0.4] - 2026-01-18
 
 ### Changed
