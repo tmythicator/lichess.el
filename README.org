@@ -2,6 +2,7 @@
 #+OPTIONS: toc:nil num:nil
 #+AUTHOR: Alexandr Timchenko
 
+[[https://melpa.org/#/lichess][file:https://melpa.org/packages/lichess-badge.svg]]
 [[https://github.com/tmythicator/Lichess.el/actions/workflows/test.yml/badge.svg]]
 [[https://img.shields.io/badge/Built_with-Nix-5277C3.svg?style=flat-square&logo=nixos&logoColor=white]]
 
@@ -80,8 +81,15 @@ You can configure Lichess.el using `M-x customize-group RET lichess RET` or by s
 
 *** Visuals
 - =lichess-core-chess-font=: Font family for Unicode chess pieces (GUI only). If the board looks misaligned, try setting this to a monospaced font like "DejaVu Sans Mono".
+- =lichess-board-gui-light-square-color=: Color for light squares (default: "#f0d9b5").
+- =lichess-board-gui-dark-square-color=: Color for dark squares (default: "#b58863").
+- =lichess-board-gui-preferred-style=: Preferred style for GUI frames ("gui", "unicode", "ascii").
+- =lichess-board-tui-preferred-style=: Preferred style for Terminal frames ("unicode", "ascii").
+
   #+begin_src elisp
   (setq lichess-core-chess-font "DejaVu Sans Mono")
+  (setq lichess-board-gui-light-square-color "#e1e1e1")
+  (setq lichess-board-gui-dark-square-color "#8b4513")
   #+end_src
 
 *** AI Challenge Defaults
@@ -102,11 +110,9 @@ Here is a complete configuration using =use-package=:
   :custom
   (lichess-token "YOUR_TOKEN")
   (lichess-core-chess-font "DejaVu Sans Mono")
-  (lichess-ai-default-level 3)
-  :config
-  ;; Optional: force a specific face for the board if needed
-  ;; (set-face-attribute 'lichess-core-board-face nil :family "DejaVu Sans Mono")
-  )
+  (lichess-board-gui-light-square-color "#f0d9b5")
+  (lichess-board-gui-dark-square-color "#b58863")
+  (lichess-ai-default-level 3))
 #+end_src
 
 * Usage
