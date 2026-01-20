@@ -16,8 +16,8 @@
     (with-temp-buffer
       (lichess-game--insert-pgn state game-buf)
       (let ((content (buffer-string)))
-        (should (string-search "1. e2e4 e7e5" content))
-        (should (string-search "2. g1f3" content))))))
+        (should (string-match-p (regexp-quote "1. e2e4 e7e5") content))
+        (should (string-match-p (regexp-quote "2. g1f3") content))))))
 
 (ert-deftest lichess-game-test-insert-pgn-empty ()
   "Test PGN insertion with no moves."
