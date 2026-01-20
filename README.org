@@ -43,7 +43,8 @@ Lichess.el is designed to work seamlessly in both *GUI* and *terminal* (=emacs -
   - [X] Diagnostics: token + active games (=M-x lichess-diagnose=)
 - FEN / Board
   - [X] Parse FEN -> internal position struct
-  - [X] Render board (ASCII or Unicode)
+  - [X] Render board (ASCII, Unicode, or SVG)
+  - [X] Multiple board themes (Brown, Blue, Green)
   - [X] Header displays side-to-move, castling rights, en passant target, and perspective.
 - Roadmap
   - [X] Watch a single game (=lichess-game.el=)
@@ -52,10 +53,9 @@ Lichess.el is designed to work seamlessly in both *GUI* and *terminal* (=emacs -
   - [X] Challenge API (against AI)
   - [X] MELPA packaging
   - [X] GUI Rendering (SVG) vs TUI separation (lichess-board.el) (v0.2)
-  - [ ] UI Improvements
+  - [X] UI Improvements
     - [X] Opponent and user rendering (names, ratings)
     - [X] Show remaining time (clock)
-    - [ ] On-screen keybindings info
     - [X] General status updates
   - [ ] Puzzles & tactics
 * Installation
@@ -77,29 +77,28 @@ Some commands require a personal API token (e.g., playing games, viewing protect
 #+end_src
 
 ** Customization
-You can configure Lichess.el using `M-x customize-group RET lichess RET` or by setting variables directly.
+You can configure Lichess.el using =M-x customize-group RET lichess RET= or by setting variables directly in your config.
 
-*** Visuals
-- =lichess-core-chess-font=: Font family for Unicode chess pieces (GUI only). If the board looks misaligned, try setting this to a monospaced font like "DejaVu Sans Mono".
-- =lichess-board-gui-light-square-color=: Color for light squares (default: "#f0d9b5").
-- =lichess-board-gui-dark-square-color=: Color for dark squares (default: "#b58863").
-- =lichess-board-gui-preferred-style=: Preferred style for GUI frames ("gui", "unicode", "ascii").
-- =lichess-board-tui-preferred-style=: Preferred style for Terminal frames ("unicode", "ascii").
+*** Authentication
+- =lichess-token=: Your personal API token. Required for playing games and viewing protected data.
 
-  #+begin_src elisp
-  (setq lichess-core-chess-font "DejaVu Sans Mono")
-  (setq lichess-board-gui-light-square-color "#e1e1e1")
-  (setq lichess-board-gui-dark-square-color "#8b4513")
-  #+end_src
+*** Board Appearance
+- =lichess-board-gui-preferred-style=: Style for GUI frames ("svg", "unicode", "ascii"). Default: "svg".
+- =lichess-board-tui-preferred-style=: Style for Terminal frames ("unicode", "ascii"). Default: "unicode".
+- =lichess-board-gui-light-square-color=: Color for light squares. Default: "#f0d9b5".
+- =lichess-board-gui-dark-square-color=: Color for dark squares. Default: "#b58863".
+- =lichess-core-chess-font=: Font family for Unicode chess pieces. Key for alignment in non-graphical modes or fallback.
+- =lichess-board-gui-asset-path=: Directory containing SVG piece assets.
+- =M-x lichess-board-gui-toggle-theme=: Switch board color theme (Brown, Blue, Green)
 
-*** AI Challenge Defaults
-- =lichess-ai-default-level=: Default Stockfish level (1-8).
-- =lichess-ai-default-clock-limit=: Clock limit in seconds.
-- =lichess-ai-default-clock-increment=: Clock increment in seconds.
+*** Game Settings (AI)
+- =lichess-ai-default-level=: Default Stockfish difficulty level (1-8). Default: 1.
+- =lichess-ai-default-clock-limit=: Initial clock limit in seconds. Default: 300 (5 mins).
+- =lichess-ai-default-clock-increment=: Clock increment in seconds. Default: 3.
 
-*** Performance / Network
-- =lichess-tv-fetch-delay=: Delay (seconds) between TV game fetches to avoid rate limits (default 0.12).
-- =lichess-util-eval-delay=: Minimum delay (seconds) between cloud evaluation requests (default 1.0).
+*** Network & Performance
+- =lichess-tv-fetch-delay=: Delay (seconds) between TV game fetches to prevent rate-limiting. Default: 0.12.
+- =lichess-util-eval-delay=: Minimum delay (seconds) between cloud evaluation requests. Default: 1.0.
 
 ** use-package Example
 Here is a complete configuration using =use-package=:
@@ -128,6 +127,7 @@ When in a game buffer (started via =M-x lichess-ai-challenge=):
 - =m= -> Prompt for a move (UCI format, e.g., =e2e4=)
 - =R= -> Resign the game (requires confirmation)
 - =D= -> Propose or accept a draw (requires confirmation)
+- =K= / =Q= -> Castle Kingside / Queenside (O-O / O-O-O)
 - =p= / =n= -> Navigate move history
 - =v= -> Cycle board perspective
 - =q= -> Quit stream and close game

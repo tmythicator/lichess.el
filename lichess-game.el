@@ -77,10 +77,22 @@ All parameters are derived from the buffer-local `lichess-game--state'."
            ;; Construct Preamble: Names, Clocks, Result
            (preamble (lichess-game--format-header state)))
       (when pos
-        (setf (lichess-pos-eval pos) eval-str)
-        (setf (lichess-pos-info pos) pos-info)
-        (lichess-board-render-to-buffer
-         pos perspective highlights preamble)))))
+        (let ((inhibit-read-only t))
+          (setf (lichess-pos-eval pos) eval-str)
+          (setf (lichess-pos-info pos) pos-info)
+          (lichess-board-render-to-buffer
+           pos perspective highlights preamble)
+
+          ;; Insert Control Buttons
+          (lichess-game--insert-controls state))
+
+        ;; Update Sidebar if it exists
+        (let ((side-buf
+               (get-buffer
+                (lichess-game--sidebar-buffer-name
+                 (lichess-game-id state)))))
+          (when (buffer-live-p side-buf)
+            (lichess-game-render-sidebar (current-buffer))))))))
 
 (defun lichess-game-history-previous ()
   "Move to the previous position in game history."
@@ -144,6 +156,7 @@ immediately after the initial summary state."
   (setq-local lichess-game--state
               (make-lichess-game
                :fen-history (make-vector 0 t)
+               :moves-str nil
                :eval-cache (make-hash-table)
                :current-idx -1
                :live-mode t
@@ -270,12 +283,22 @@ BUF is the target buffer, OBJ is the parsed JSON event."
    buf
    (let*
        ((fen (lichess-game--extract-fen obj))
+        (state-obj (or (lichess-util--aget obj 'state) obj))
+        (moves (lichess-util--aget state-obj 'moves))
         (players (or (lichess-util--aget obj 'players) obj))
         (white (lichess-util--aget players 'white))
         (black (lichess-util--aget players 'black))
         (state lichess-game--state)
         ;; Capture live mode BEFORE status update (which might clear it)
         (was-live (lichess-game-live-mode state)))
+
+     ;; [FIX] Update Moves (Incremental from 'lm')
+     (when-let ((lm (lichess-util--aget obj 'lm)))
+       (let ((current (or (lichess-game-moves-str state) "")))
+         (setf (lichess-game-moves-str state)
+               (if (string-empty-p current)
+                   lm
+                 (concat current " " lm)))))
 
      ;; Update names if found (usually in the first message)
      (when (or white black)
@@ -286,6 +309,10 @@ BUF is the target buffer, OBJ is the parsed JSON event."
 
      ;; Update Status/Winner
      (lichess-game--update-status state obj buf)
+
+     ;; Update Moves
+     (when moves
+       (setf (lichess-game-moves-str state) moves))
 
      ;; Update Clocks
      (lichess-game--update-clocks state obj)
@@ -321,6 +348,9 @@ BUF is the target buffer, OBJ is the parsed JSON event."
      ;; Update Clocks
      (lichess-game--update-clocks state obj)
      (setf (lichess-game-last-update-time state) (float-time))
+
+     (when moves
+       (setf (lichess-game-moves-str state) moves))
 
      ;; Update Status/Winner
      (lichess-game--update-status state state-obj buf)
@@ -498,6 +528,18 @@ This uses /api/board/game/stream/{ID} which has no delay."
         (lichess-core-with-buf
          (current-buffer) (lichess-game-render))))))
 
+(defun lichess-game-flip-board ()
+  "Toggle the board perspective between white and black."
+  (interactive)
+  (when-let* ((state lichess-game--state))
+    (let* ((current (or (lichess-game-perspective state) 'white))
+           (new-persp
+            (if (eq current 'white)
+                'black
+              'white)))
+      (setf (lichess-game-perspective state) new-persp)
+      (lichess-game-render))))
+
 ;;;###autoload
 (defun lichess-game-stream-stop ()
   "Stop the current Lichess NDJSON game stream (if any)."
@@ -665,6 +707,116 @@ MOVE should be in UCI format (e.g., e2e4)."
   (interactive)
   (lichess-game--do-castle 'queenside))
 
+
+;;; Sidebar / PGN
+
+(defun lichess-game--sidebar-buffer-name (id)
+  (format "*Lichess Sidebar: %s*" id))
+
+(defvar-local lichess-game--main-buffer nil
+  "Pointer to the main game buffer.")
+
+(define-derived-mode
+ lichess-game-sidebar-mode
+ special-mode
+ "Lichess-Sidebar"
+ "Mode for Lichess sidebar."
+ (setq truncate-lines t))
+
+(defun lichess-game-set-index (idx)
+  "Set current history index to IDX."
+  (interactive "nIndex: ")
+  (when-let* ((state lichess-game--state)
+              (hist (lichess-game-fen-history state)))
+    (when (and (>= idx 0) (< idx (length hist)))
+      (setf (lichess-game-live-mode state) (= idx (1- (length hist))))
+      (setf (lichess-game-current-idx state) idx)
+      (lichess-game-render))))
+
+(defun lichess-game--insert-pgn (state game-buf)
+  "Insert clickable PGN into current buffer for STATE and GAME-BUF."
+  (let* ((moves-str (or (lichess-game-moves-str state) ""))
+         (moves (split-string moves-str " " t))
+         (curr-idx (or (lichess-game-current-idx state) -1))
+         ;; curr-idx 0 = startpos. 1 = after move 0.
+         (highlight-idx (1- curr-idx)))
+    (dotimes (i (length moves))
+      (let* ((move (nth i moves))
+             (move-num (1+ (/ i 2)))
+             (is-white (= (% i 2) 0))
+             (is-highlight (= i highlight-idx)))
+        (when is-white
+          (insert (format "%3d. " move-num)))
+
+        (insert-button
+         (if (string-match-p "\\`[a-z][0-9][a-z][0-9]\\'" move)
+             ;; Simple formatting: e2e4 -> e2-e4 (make it slightly wider)
+             ;; Or just use raw UCI. Converting to SAN is hard without logic.
+             ;; Let's try a very basic 'Dest' extraction if pawn-like or 'PieceDest'
+             ;; But without knowing piece type, we can't do SAN.
+             ;; Just show UCI for now.
+             move
+           move)
+         'action
+         (lambda (_)
+           (when (buffer-live-p game-buf)
+             (with-current-buffer game-buf
+               (lichess-game-set-index (1+ i)))))
+         'face
+         (if is-highlight
+             'highlight
+           'link)
+         'follow-link
+         t)
+
+        (insert " ")
+        (unless is-white
+          (insert "\n"))))))
+
+(defun lichess-game-render-sidebar (game-buf)
+  "Render the sidebar for GAME-BUF."
+  (when (buffer-live-p game-buf)
+    (with-current-buffer game-buf
+      (when-let* ((state lichess-game--state)
+                  (id (lichess-game-id state)))
+        (let ((side-buf
+               (get-buffer-create
+                (lichess-game--sidebar-buffer-name id))))
+          (with-current-buffer side-buf
+            (unless (derived-mode-p 'lichess-game-sidebar-mode)
+              (lichess-game-sidebar-mode))
+            (setq lichess-game--main-buffer game-buf)
+            (let ((inhibit-read-only t))
+              (erase-buffer)
+              (insert (propertize "Moves:\n\n" 'face 'bold))
+              (lichess-game--insert-pgn state game-buf)
+              ;; PGN at bottom? Or top?
+              ;; Usually list grows down.
+              ;; Insert chat placeholder
+              (insert
+               "\n\n"
+               (propertize "Chat:" 'face 'bold)
+               "\n(Not implemented yet)"))))))))
+
+(defun lichess-game-toggle-sidebar ()
+  "Toggle the sidebar for the current game."
+  (interactive)
+  (unless (derived-mode-p 'lichess-game-buffer-mode)
+    (error "Not in a Lichess game buffer"))
+  (when-let* ((state lichess-game--state)
+              (id (lichess-game-id state)))
+    (let* ((side-name (lichess-game--sidebar-buffer-name id))
+           (side-win (get-buffer-window side-name)))
+      (if side-win
+          (delete-window side-win)
+        ;; Create/Split
+        (lichess-game-render-sidebar (current-buffer))
+        (let ((win (split-window-right 50))) ;; 50 columns
+          (set-window-buffer win side-name)
+          ;; Also force render to ensure sync
+          (lichess-game-render))))))
+
+
 (defun lichess-game-handle-click (coord)
   "Handle a click on COORD (symbol like `e4') in the current game."
   (when-let* ((state lichess-game--state)
@@ -802,6 +954,26 @@ or `state.wtime' (ms)."
           (lichess-util-fmt-user-obj (lichess-game-white state)))
          (b-name
           (lichess-util-fmt-user-obj (lichess-game-black state)))
+         ;; Material Diff Logic
+         (idx (lichess-game-current-idx state))
+         (hist (lichess-game-fen-history state))
+         (fen
+          (if (and idx (>= idx 0) (< idx (length hist)))
+              (aref hist idx)
+            nil))
+         (pos (and fen (lichess-fen-parse fen)))
+         (mat-diff (and pos (lichess-fen-material-diff pos)))
+         (mat-strings
+          (and mat-diff (lichess-fen-format-material mat-diff)))
+         (w-mat
+          (if mat-strings
+              (concat " " (car mat-strings))
+            ""))
+         (b-mat
+          (if mat-strings
+              (concat " " (cdr mat-strings))
+            ""))
+
          (w-clock (lichess-game-white-clock state))
          (b-clock (lichess-game-black-clock state))
          (w-clock-str
@@ -836,12 +1008,33 @@ or `state.wtime' (ms)."
               (format "  [%s %s]" score status)))
            (t
             ""))))
-    (format "%s (%s) vs %s (%s)%s"
+    (format "%s%s (%s) vs %s%s (%s)%s"
             w-name
+            w-mat
             w-clock-str
             b-name
+            b-mat
             b-clock-str
             result-str)))
+
+(defun lichess-game--insert-controls (state)
+  "Insert game control buttons into the current buffer for STATE."
+  (goto-char (point-max))
+  (insert "\n\n")
+  (insert-button "[Flip Board]"
+                 'action
+                 (lambda (_) (lichess-game-flip-board)))
+  (insert "  ")
+  (when (lichess-game-my-color state)
+    (insert-button "[Resign]"
+                   'action
+                   (lambda (_) (lichess-game-resign)))
+    (insert "  ")
+    (insert-button "[Draw]" 'action (lambda (_) (lichess-game-draw)))
+    (insert "  "))
+  (insert-button "[Side]"
+                 'action
+                 (lambda (_) (lichess-game-toggle-sidebar))))
 
 (defun lichess-game--insert-preamble
     (buf white black &optional variant my-color)

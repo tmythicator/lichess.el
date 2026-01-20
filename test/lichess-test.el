@@ -203,24 +203,24 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
 (ert-deftest lichess-board-dispatch-test ()
   "Test that `lichess-board-draw` dispatches correctly."
   (let ((pos (make-lichess-pos)))
-    ;; Case 1: Style "gui", GUI available -> calls GUI
+    ;; Case 1: Style "svg", GUI available -> calls GUI
     (cl-letf (((symbol-function 'lichess-board-gui-available-p) (lambda () t))
-              ((symbol-function 'lichess-board-gui-draw) (lambda (_ _ _) "GUI"))
+              ((symbol-function 'lichess-board-gui-draw) (lambda (_ _ _ &optional _) "GUI"))
               ((symbol-function 'lichess-board-tui-draw) (lambda (_ _ _) "TUI")))
-      (let ((lichess-board-gui-preferred-style "gui"))
+      (let ((lichess-board-gui-preferred-style "svg"))
         (should (equal (lichess-board-draw pos) "GUI"))))
 
-    ;; Case 2: Style "gui", GUI NOT available -> Fallback to TUI (Unicode)
+    ;; Case 2: Style "svg", GUI NOT available -> Fallback to TUI (Unicode)
     (cl-letf (((symbol-function 'lichess-board-gui-available-p) (lambda () nil))
-              ((symbol-function 'lichess-board-gui-draw) (lambda (_ _ _) "GUI"))
+              ((symbol-function 'lichess-board-gui-draw) (lambda (_ _ _ &optional _) "GUI"))
               ((symbol-function 'lichess-board-tui-draw) (lambda (_ _ _) "TUI")))
-      (let ((lichess-board-gui-preferred-style "gui")
+      (let ((lichess-board-gui-preferred-style "svg")
             (lichess-board-tui-preferred-style "unicode"))
         (should (equal (lichess-board-draw pos) "TUI"))))
 
     ;; Case 3: Style "ascii" -> calls TUI
     (cl-letf (((symbol-function 'lichess-board-gui-available-p) (lambda () t))
-              ((symbol-function 'lichess-board-gui-draw) (lambda (_ _ _) "GUI"))
+              ((symbol-function 'lichess-board-gui-draw) (lambda (_ _ _ &optional _) "GUI"))
               ((symbol-function 'lichess-board-tui-draw) (lambda (_ _ _) "TUI")))
       (let ((lichess-board-tui-preferred-style "ascii")
             (lichess-board-gui-preferred-style "ascii"))
@@ -245,15 +245,15 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
       ;; 2. Warning: Terminal mode
       (setq warnings '())
       (cl-letf (((symbol-function 'display-graphic-p) (lambda () nil)))
-        (lichess-set-style "gui"))
+        (lichess-set-style "svg"))
       (should (string-match "Emacs is not running in graphical mode" (car warnings)))
-      (should (string= custom-set-val "gui")) ;; It still sets it
+      (should (string= custom-set-val "svg")) ;; It still sets it
 
       ;; 3. Warning: No SVG support
       (setq warnings '())
       (cl-letf (((symbol-function 'display-graphic-p) (lambda () t))
                 ((symbol-function 'lichess-board-gui-available-p) (lambda () nil)))
-        (lichess-set-style "gui"))
+        (lichess-set-style "svg"))
       (should (string-match "SVG support is missing" (car warnings)))
 
       ;; 4. Warning: Missing Assets
@@ -261,7 +261,7 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
       (cl-letf (((symbol-function 'display-graphic-p) (lambda () t))
                 ((symbol-function 'lichess-board-gui-available-p) (lambda () t))
                 ((symbol-function 'lichess-board-gui-missing-assets) (lambda () '("wK.svg"))))
-        (lichess-set-style "gui"))
+        (lichess-set-style "svg"))
       (should (string-match "assets are missing: wK.svg" (car warnings))))))
 
 (provide 'lichess-test)

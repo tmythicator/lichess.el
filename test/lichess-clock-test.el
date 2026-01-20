@@ -90,7 +90,8 @@
 
         ;; Run Tick. Inside it calls (float-time) -> 10000.0
         ;; Elapsed = 10000.0 - 9999.0 = 1.0s = 1000ms
-        (lichess-game--tick (current-buffer))
+        (let ((inhibit-read-only t))
+          (lichess-game--tick (current-buffer)))
 
         ;; White moved? 10s - 1s = 9s. "00:09"
         (should (string= (lichess-game-white-clock st) "00:09"))
@@ -105,7 +106,7 @@
     (cl-letf (((symbol-function 'float-time) (lambda () 10000.0)))
       (let* ((st lichess-game--state)
              (fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"))
-        
+
         ;; Setup initial state
         (setf (lichess-game-white-time-ms st) 10000)
         (setf (lichess-game-black-time-ms st) 10000)
@@ -151,24 +152,24 @@
       (setf (lichess-game-live-mode st) t)
       (setf (lichess-game-fen-history st) (vector "startpos"))
       (setf (lichess-game-current-idx st) 0)
-      
+
       ;; 1. Simulate Stream Event with termination
       (let ((term-event '((status . "resign") (winner . "white"))))
         (lichess-game--stream-on-event (current-buffer) term-event)
-        
+
         (should (string= (lichess-game-status st) "resign"))
         (should (eq (lichess-game-winner st) 'white))
         (should (null (lichess-game-live-mode st)))
         ;; Verify render happened (result string present)
         (goto-char (point-min))
         (should (search-forward "[1-0 resign]" nil t)))
-        
+
       ;; 2. Simulate Board API Event with termination
       ;; Reset
       (setf (lichess-game-live-mode st) t)
       (let ((term-event-board '((type . "gameState") (status . "mate") (winner . "black"))))
         (lichess-game--board-on-event (current-buffer) term-event-board)
-        
+
         (should (string= (lichess-game-status st) "mate"))
         (should (eq (lichess-game-winner st) 'black))
         (should (null (lichess-game-live-mode st)))))))

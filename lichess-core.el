@@ -40,6 +40,7 @@
  black ;; player-info (alist/plist)
  my-color ;; 'white, 'black, or nil
  fen-history ;; vector of strings
+ moves-str ;; string (space-separated UCI moves)
  eval-cache ;; hash-table
  current-idx ;; int
  live-mode ;; bool

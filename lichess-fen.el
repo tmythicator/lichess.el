@@ -263,5 +263,85 @@ MOVES-STR is a space-separated string of UCI moves like \"e2e4 e7e5\"."
      " "
      (number-to-string (lichess-pos-fullmove pos)))))
 
+(defun lichess-fen-material-diff (pos)
+  "Calculate material difference for POS.
+Returns a list (w-score b-score w-diff b-diff).
+w-score/b-score: Total material value (P=1, N/B=3, R=5, Q=9).
+w-diff/b-diff: List of characters representing extra pieces for that side."
+  (let ((board (lichess-pos-board pos))
+        (w-counts
+         (list
+          (cons ?P 0)
+          (cons ?N 0)
+          (cons ?B 0)
+          (cons ?R 0)
+          (cons ?Q 0)))
+        (b-counts
+         (list
+          (cons ?p 0)
+          (cons ?n 0)
+          (cons ?b 0)
+          (cons ?r 0)
+          (cons ?q 0))))
+    ;; 1. Count pieces
+    (dotimes (r 8)
+      (dotimes (c 8)
+        (let ((p (aref (aref board r) c)))
+          (cond
+           ((assoc p w-counts)
+            (cl-incf (cdr (assoc p w-counts))))
+           ((assoc p b-counts)
+            (cl-incf (cdr (assoc p b-counts))))))))
+
+    ;; 2. Calculate values
+    (let ((w-points 0)
+          (b-points 0)
+          (w-extra '())
+          (b-extra '())
+          (values '((?P . 1) (?N . 3) (?B . 3) (?R . 5) (?Q . 9))))
+
+      (dolist (pair values)
+        (let* ((char (car pair))
+               (val (cdr pair))
+               (w-count (cdr (assoc char w-counts)))
+               (b-char (downcase char))
+               (b-count (cdr (assoc b-char b-counts)))
+               (diff (- w-count b-count)))
+
+          (cl-incf w-points (* w-count val))
+          (cl-incf b-points (* b-count val))
+
+          (cond
+           ((> diff 0)
+            (dotimes (_ diff)
+              (push char w-extra)))
+           ((< diff 0)
+            (dotimes (_ (abs diff))
+              (push b-char b-extra))))))
+
+      (list
+       w-points b-points (nreverse w-extra) (nreverse b-extra)))))
+
+(defun lichess-fen-format-material (diff)
+  "Format material DIFF from `lichess-fen-material-diff`.
+Returns (w-string . b-string)."
+  (let* ((w-pts (nth 0 diff))
+         (b-pts (nth 1 diff))
+         (w-extra (nth 2 diff))
+         (b-extra (nth 3 diff))
+         (pt-diff (- w-pts b-pts)))
+
+    (cons
+     (if (> pt-diff 0)
+         (format "+%d %s" pt-diff (apply #'string w-extra))
+       (if w-extra
+           (apply #'string w-extra)
+         ""))
+     (if (< pt-diff 0)
+         (format "+%d %s" (abs pt-diff) (apply #'string b-extra))
+       (if b-extra
+           (apply #'string b-extra)
+         "")))))
+
 (provide 'lichess-fen)
 ;;; lichess-fen.el ends here

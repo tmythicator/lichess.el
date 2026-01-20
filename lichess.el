@@ -87,31 +87,31 @@
 ;;;###autoload
 (defun lichess-set-style (style)
   "Set the board rendering STYLE interactively.
-STYLE: \"unicode\", \"ascii\", or \"gui\".
-Warns if \"gui\" is selected but unavailable or missing assets."
+STYLE: \"unicode\", \"ascii\", or \"svg\".
+Warns if \"svg\" is selected but unavailable or missing assets."
   (interactive (list
                 (completing-read
-                 "Board Style: " '("unicode" "ascii" "gui")
+                 "Board Style: " '("unicode" "ascii" "svg")
                  nil t)))
 
-  (when (string= style "gui")
+  (when (string= style "svg")
     (cond
      ((not (display-graphic-p))
       (display-warning
        'lichess
-       "GUI style selected but Emacs is not running in graphical mode. Fallback to TUI will apply."
+       "SVG style selected but Emacs is not running in graphical mode. Fallback to TUI will apply."
        :warning))
      ((not (lichess-board-gui-available-p))
       (display-warning
        'lichess
-       "GUI style selected but SVG support is missing in this Emacs build."
+       "SVG style selected but SVG support is missing in this Emacs build."
        :warning))
      (t
       (let ((missing (lichess-board-gui-missing-assets)))
         (when missing
           (display-warning
            'lichess
-           (format "GUI style selected but assets are missing: %s"
+           (format "SVG style selected but assets are missing: %s"
                    (string-join missing ", "))
            :warning))))))
 

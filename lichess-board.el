@@ -16,10 +16,10 @@
 (require 'lichess-board-tui)
 (require 'lichess-board-gui)
 
-(defcustom lichess-board-gui-preferred-style "gui"
+(defcustom lichess-board-gui-preferred-style "svg"
   "Preferred board rendering style in GUI environments.
-Values: \"gui\", \"unicode\", \"ascii\"."
-  :type '(choice (const "gui") (const "unicode") (const "ascii"))
+Values: \"svg\", \"unicode\", \"ascii\"."
+  :type '(choice (const "svg") (const "unicode") (const "ascii"))
   :group 'lichess)
 
 (defcustom lichess-board-tui-preferred-style "unicode"
@@ -38,10 +38,11 @@ EVAL and INFO are read from POS."
           (if gui-avail
               lichess-board-gui-preferred-style
             lichess-board-tui-preferred-style)))
-    (if (and (string= style "gui") gui-avail)
-        (lichess-board-gui-draw pos perspective highlights)
+    (if (and (string= style "svg") gui-avail)
+        (lichess-board-gui-draw
+         pos perspective highlights (lichess-pos-eval pos))
       (let ((tui-style
-             (if (string= style "gui")
+             (if (string= style "svg")
                  "unicode"
                style)))
         (lichess-board-tui-draw pos tui-style perspective)))))
@@ -54,9 +55,9 @@ EVAL and INFO are read from POS."
               lichess-board-gui-preferred-style
             lichess-board-tui-preferred-style))
          (display-style
-          (if (and gui-avail (string= style "gui"))
-              "GUI"
-            (if (string= style "gui")
+          (if (and gui-avail (string= style "svg"))
+              "SVG"
+            (if (string= style "svg")
                 "unicode"
               style))))
     (lichess-board-tui-draw-heading pos display-style perspective)))
@@ -72,12 +73,13 @@ Handles face application for TUI modes, avoiding interference with GUI SVGs."
           (if gui-avail
               lichess-board-gui-preferred-style
             lichess-board-tui-preferred-style))
-         (gui-p (and gui-avail (string= style "gui")))
+         (gui-p (and gui-avail (string= style "svg")))
          (board-str
           (if gui-p
-              (lichess-board-gui-draw pos perspective highlights)
+              (lichess-board-gui-draw
+               pos perspective highlights (lichess-pos-eval pos))
             (let ((tui-style
-                   (if (string= style "gui")
+                   (if (string= style "svg")
                        "unicode"
                      style)))
               (lichess-board-tui-draw pos tui-style perspective))))
