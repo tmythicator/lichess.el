@@ -72,21 +72,32 @@ All parameters are derived from the buffer-local `lichess-game--state'."
            (perspective (lichess-game-perspective state))
            (eval-label
             (cond
-             ((stringp eval-str) (format " | Eval: %s" eval-str))
-             ((eq eval-str :pending) " | Eval: ...")
-             (t "")))
-           (pos-info (format "Position %d/%d%s" (1+ idx) (length hist) eval-label))
+             ((stringp eval-str)
+              (format " | Eval: %s" eval-str))
+             ((eq eval-str :pending)
+              " | Eval: ...")
+             (t
+              "")))
+           (result (lichess-game--format-result state))
+           (pos-info
+            (format "Position %d/%d%s%s"
+                    (1+ idx) (length hist) eval-label
+                    (if result
+                        (concat "\n" result)
+                      "")))
            (highlights
             (when-let ((sq (lichess-game-selected-square state)))
               (list sq)))
            ;; Construct Preamble: Names, Clocks, Result
-           (preamble (lichess-game--format-header state)))
+           (header-parts (lichess-game--format-header state))
+           (preamble (car header-parts))
+           (postamble (cdr header-parts)))
       (when pos
         (let ((inhibit-read-only t))
           (setf (lichess-pos-eval pos) eval-str)
           (setf (lichess-pos-info pos) pos-info)
           (lichess-board-render-to-buffer
-           pos perspective highlights preamble)
+           pos perspective highlights preamble postamble)
 
           ;; Insert Control Buttons
           (lichess-game--insert-controls state))
@@ -954,13 +965,43 @@ or `state.wtime' (ms)."
             (lichess-game--format-time final-b))
       (setf (lichess-game-black-time-ms state) final-b))))
 
+(defun lichess-game--format-result (state)
+  "Format the game result string from STATE for the footer."
+  (let* ((status (lichess-game-status state))
+         (winner (lichess-game-winner state))
+         (score
+          (cond
+           ((eq winner 'white)
+            "1-0")
+           ((eq winner 'black)
+            "0-1")
+           ((member status '("draw" "stalemate"))
+            "1/2-1/2")
+           (t
+            nil))))
+    (when (and score
+               (member
+                status
+                '("mate" "resign" "outoftime" "draw" "stalemate")))
+      (let ((winner-text
+             (cond
+              ((eq winner 'white)
+               "White is victorious")
+              ((eq winner 'black)
+               "Black is victorious")
+              (t
+               "Game Drawn"))))
+        (propertize (format "%s • %s (%s)" winner-text score status)
+                    'face
+                    'success)))))
+
 (defun lichess-game--format-header (state)
-  "Format the game header string (names, clocks, result) from STATE."
+  "Format the game header strings (names, clocks) from STATE.
+Returns a cons cell (TOP . BOTTOM) based on board perspective."
   (let* ((w-name
           (lichess-util-fmt-user-obj (lichess-game-white state)))
          (b-name
           (lichess-util-fmt-user-obj (lichess-game-black state)))
-         ;; Material Diff Logic
          (idx (lichess-game-current-idx state))
          (hist (lichess-game-fen-history state))
          (fen
@@ -973,55 +1014,28 @@ or `state.wtime' (ms)."
           (and mat-diff (lichess-fen-format-material mat-diff)))
          (w-mat
           (if mat-strings
-              (concat " " (car mat-strings))
+              (car mat-strings)
             ""))
          (b-mat
           (if mat-strings
-              (concat " " (cdr mat-strings))
+              (cdr mat-strings)
             ""))
-
-         (w-clock (lichess-game-white-clock state))
-         (b-clock (lichess-game-black-clock state))
          (w-clock-str
-          (propertize (or w-clock "--:--")
-                      'lichess-clock
-                      'white
-                      'face
-                      'bold))
+          (propertize (or (lichess-game-white-clock state) "--:--")
+                      'lichess-clock 'white 'face 'bold))
          (b-clock-str
-          (propertize (or b-clock "--:--")
-                      'lichess-clock
-                      'black
-                      'face
-                      'bold))
-         (status (lichess-game-status state))
-         (winner (lichess-game-winner state))
-         (result-str
-          (cond
-           ((or (string= status "mate")
-                (string= status "resign")
-                (string= status "outoftime")
-                (string= status "draw")
-                (string= status "stalemate"))
-            (let ((score
-                   (cond
-                    ((eq winner 'white)
-                     "1-0")
-                    ((eq winner 'black)
-                     "0-1")
-                    (t
-                     "1/2-1/2"))))
-              (format "  [%s %s]" score status)))
-           (t
-            ""))))
-    (format "%s%s (%s) vs %s%s (%s)%s"
-            w-name
-            w-mat
-            w-clock-str
-            b-name
-            b-mat
-            b-clock-str
-            result-str)))
+          (propertize (or (lichess-game-black-clock state) "--:--")
+                      'lichess-clock 'black 'face 'bold))
+         (perspective (lichess-game-perspective state))
+         (white-line (format "%s%s  %s" w-name w-mat w-clock-str))
+         (black-line (format "%s%s  %s" b-name b-mat b-clock-str)))
+    (if (eq perspective 'black)
+        (cons
+         (propertize white-line 'face 'italic)
+         (propertize black-line 'face 'bold))
+      (cons
+       (propertize black-line 'face 'italic)
+       (propertize white-line 'face 'bold)))))
 
 (defun lichess-game--insert-controls (state)
   "Insert game control buttons into the current buffer for STATE."

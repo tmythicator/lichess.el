@@ -77,11 +77,16 @@
 into winning probability [0.0, 1.0] for White.
 Returns nil if EVAL-STR is invalid, pending, or unavailable."
   (cond
-   ((null eval-str) nil)
-   ((symbolp eval-str) nil)
-   ((not (stringp eval-str)) nil)
-   ((string= eval-str "") nil)
-   ((string= eval-str "...") nil)
+   ((null eval-str)
+    nil)
+   ((symbolp eval-str)
+    nil)
+   ((not (stringp eval-str))
+    nil)
+   ((string= eval-str "")
+    nil)
+   ((string= eval-str "...")
+    nil)
    (t
     (condition-case nil
         (let* ((str (replace-regexp-in-string "+" "" eval-str))
@@ -90,13 +95,18 @@ Returns nil if EVAL-STR is invalid, pending, or unavailable."
                (valid-format (string-match-p "[0-9]" str)))
           (if (not valid-format)
               nil
-            (let ((val (string-to-number (replace-regexp-in-string "#" "" str))))
+            (let ((val
+                   (string-to-number
+                    (replace-regexp-in-string "#" "" str))))
               (if is-mate
-                  (if (> val 0) 1.0 0.0)
+                  (if (> val 0)
+                      1.0
+                    0.0)
                 ;; Lichess Sigmoid: 1 / (1 + exp(-0.00368208 * centipawns))
                 ;; val is in pawns, so we multiply coeff by 100 -> 0.368208
                 (/ 1.0 (+ 1.0 (exp (- (* 0.368208 val)))))))))
-      (error nil)))))
+      (error
+       nil)))))
 
 (defun lichess-board-gui-draw
     (pos &optional perspective highlights eval)

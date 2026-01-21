@@ -329,18 +329,29 @@ Returns (w-string . b-string)."
          (b-pts (nth 1 diff))
          (w-extra (nth 2 diff))
          (b-extra (nth 3 diff))
-         (pt-diff (- w-pts b-pts)))
-
+         (pt-diff (- w-pts b-pts))
+         (map-piece
+          (lambda (chars)
+            (mapconcat (lambda (c)
+                         (pcase (upcase c)
+                           (?P "♙")
+                           (?N "♘")
+                           (?B "♗")
+                           (?R "♖")
+                           (?Q "♕")
+                           (_ (char-to-string c))))
+                       chars
+                       ""))))
     (cons
      (if (> pt-diff 0)
-         (format "+%d %s" pt-diff (apply #'string w-extra))
+         (format " +%d %s" pt-diff (funcall map-piece w-extra))
        (if w-extra
-           (apply #'string w-extra)
+           (concat " " (funcall map-piece w-extra))
          ""))
      (if (< pt-diff 0)
-         (format "+%d %s" (abs pt-diff) (apply #'string b-extra))
+         (format " +%d %s" (abs pt-diff) (funcall map-piece b-extra))
        (if b-extra
-           (apply #'string b-extra)
+           (concat " " (funcall map-piece b-extra))
          "")))))
 
 (provide 'lichess-fen)

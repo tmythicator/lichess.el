@@ -90,13 +90,14 @@ Handles face application for TUI modes, avoiding interference with GUI SVGs."
        start (point) '(face lichess-core-board-face)))))
 
 (defun lichess-board-render-to-buffer
-    (pos &optional perspective highlights preamble)
+    (pos &optional perspective highlights preamble postamble)
   "Clear and render POS to the current buffer.
 Standardizes rendering for both game and FEN views.
 - POS: `lichess-pos` struct.
 - PERSPECTIVE: `white`, `black`, or `auto`.
 - HIGHLIGHTS: List of squares to highlight.
 - PREAMBLE: Optional text to insert at the very top.
+- POSTAMBLE: Optional text to insert below the board.
 Uses `eval` and `info` from POS if present."
   (let ((inhibit-read-only t))
     (erase-buffer)
@@ -112,11 +113,15 @@ Uses `eval` and `info` from POS if present."
     (lichess-board-insert-board pos perspective highlights)
     (insert "\n")
 
-    ;; 3. Info/Footer
+    ;; 3. Postamble
+    (when postamble
+      (insert "\n" postamble))
+
+    ;; 4. Info/Footer
     (when (lichess-pos-info pos)
       (insert "\n" (lichess-pos-info pos)))
 
-    ;; 4. Reset cursor
+    ;; 5. Reset cursor
     (goto-char (point-min))))
 
 (provide 'lichess-board)

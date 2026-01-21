@@ -162,7 +162,7 @@
         (should (null (lichess-game-live-mode st)))
         ;; Verify render happened (result string present)
         (goto-char (point-min))
-        (should (search-forward "[1-0 resign]" nil t)))
+        (should (search-forward "White is victorious • 1-0 (resign)" nil t)))
 
       ;; 2. Simulate Board API Event with termination
       ;; Reset
