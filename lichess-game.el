@@ -70,7 +70,12 @@ All parameters are derived from the buffer-local `lichess-game--state'."
             (ignore-errors
               (lichess-fen-parse fen)))
            (perspective (lichess-game-perspective state))
-           (pos-info (format "Position %d/%d" (1+ idx) (length hist)))
+           (eval-label
+            (cond
+             ((stringp eval-str) (format " | Eval: %s" eval-str))
+             ((eq eval-str :pending) " | Eval: ...")
+             (t "")))
+           (pos-info (format "Position %d/%d%s" (1+ idx) (length hist) eval-label))
            (highlights
             (when-let ((sq (lichess-game-selected-square state)))
               (list sq)))
@@ -489,14 +494,15 @@ This uses /api/board/game/stream/{ID} which has no delay."
           (let ((cached-eval
                  (gethash i (lichess-game-eval-cache state))))
             (when (or (null cached-eval)
-                      (string-empty-p cached-eval)
-                      (string= cached-eval "..."))
+                      (and (stringp cached-eval)
+                           (or (string-empty-p cached-eval)
+                               (string= cached-eval "..."))))
               (let* ((fen (aref hist i))
                      (pos
                       (ignore-errors
                         (lichess-fen-parse fen))))
                 (when pos
-                  (puthash i "..." (lichess-game-eval-cache state))
+                  (puthash i :pending (lichess-game-eval-cache state))
                   (lichess-util-fetch-evaluation
                    fen
                    (lambda (eval-str)

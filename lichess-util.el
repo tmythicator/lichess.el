@@ -127,32 +127,33 @@ Passes the result string to CALLBACK."
                      (lichess-http-json
                       url
                       (lambda (res)
-                        (message "FEN: %s.\n eval RES: %s" fen res)
-                        (when (and (eq (car res) 200)
-                                   (functionp callback))
-                          (let* ((data (cdr res))
-                                 (pvs (lichess-util--aget data 'pvs))
-                                 (best-pv (and pvs (car pvs)))
-                                 (cp
-                                  (and best-pv
-                                       (lichess-util--aget
-                                        best-pv 'cp)))
-                                 (mate
-                                  (and best-pv
-                                       (lichess-util--aget
-                                        best-pv 'mate)))
-                                 (eval-str
-                                  (cond
-                                   (mate
-                                    (format "M%d" mate))
-                                   (cp
-                                    (format "%+.2f"
-                                            (/ (float cp) 100.0)))
-                                   (t
-                                    nil))))
-                            (when eval-str
-                              (message "eval: %s" eval-str)
-                              (funcall callback eval-str))))))))
+                        (if (eq (car res) 200)
+                            (when (functionp callback)
+                              (let* ((data (cdr res))
+                                     (pvs
+                                      (lichess-util--aget data 'pvs))
+                                     (best-pv (and pvs (car pvs)))
+                                     (cp
+                                      (and best-pv
+                                           (lichess-util--aget
+                                            best-pv 'cp)))
+                                     (mate
+                                      (and best-pv
+                                           (lichess-util--aget
+                                            best-pv 'mate)))
+                                     (eval-str
+                                      (cond
+                                       (mate
+                                        (format "M%d" mate))
+                                       (cp
+                                        (format "%+.2f"
+                                                (/ (float cp) 100.0)))
+                                       (t
+                                        :unavailable))))
+                                (funcall callback eval-str)))
+                          ;; Non-200 response (e.g. 404)
+                          (when (functionp callback)
+                            (funcall callback :unavailable)))))))
                  fen callback)))
 
 (provide 'lichess-util)

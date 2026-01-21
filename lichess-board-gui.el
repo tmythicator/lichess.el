@@ -74,26 +74,29 @@
 
 (defun lichess-board-gui--parse-eval (eval-str)
   "Parse EVAL-STR (e.g. \"1.30\", \"#-2\")
-into winning probability [0.0, 1.0] for White."
-  (if (or (null eval-str)
-          (string-empty-p eval-str)
-          (string= eval-str "..."))
-      0.5
+into winning probability [0.0, 1.0] for White.
+Returns nil if EVAL-STR is invalid, pending, or unavailable."
+  (cond
+   ((null eval-str) nil)
+   ((symbolp eval-str) nil)
+   ((not (stringp eval-str)) nil)
+   ((string= eval-str "") nil)
+   ((string= eval-str "...") nil)
+   (t
     (condition-case nil
         (let* ((str (replace-regexp-in-string "+" "" eval-str))
                (is-mate (string-match-p "#" str))
-               (val
-                (string-to-number
-                 (replace-regexp-in-string "#" "" str))))
-          (if is-mate
-              (if (> val 0)
-                  1.0
-                0.0)
-            ;; Sigmoid: 1 / (1 + exp(-0.7 * pawns))
-            ;; 1 pawn => ~66% win chance
-            (/ 1.0 (+ 1.0 (exp (- (* 0.7 val)))))))
-      (error
-       0.5))))
+               ;; Verify it looks like a number or mate
+               (valid-format (string-match-p "[0-9]" str)))
+          (if (not valid-format)
+              nil
+            (let ((val (string-to-number (replace-regexp-in-string "#" "" str))))
+              (if is-mate
+                  (if (> val 0) 1.0 0.0)
+                ;; Lichess Sigmoid: 1 / (1 + exp(-0.00368208 * centipawns))
+                ;; val is in pawns, so we multiply coeff by 100 -> 0.368208
+                (/ 1.0 (+ 1.0 (exp (- (* 0.368208 val)))))))))
+      (error nil)))))
 
 (defun lichess-board-gui-draw
     (pos &optional perspective highlights eval)
@@ -103,12 +106,13 @@ HIGHLIGHTS: List of squares to highlight (e.g. \\='e4).
 EVAL: Optional evaluation string (e.g. \"+1.5\")."
   (let* ((sq-size 45) ;; Size of one square in pixels
          (board-size (* sq-size 8))
+         (prob (and eval (lichess-board-gui--parse-eval eval)))
          (gauge-width
-          (if eval
+          (if prob
               12
             0))
          (padding
-          (if eval
+          (if prob
               6
             0))
          (total-width (+ board-size padding gauge-width))
@@ -202,18 +206,10 @@ EVAL: Optional evaluation string (e.g. \"+1.5\")."
                    :height sq-size))))))))
 
     ;; 4. Draw Evaluation Gauge
-    (when eval
-      (let*
-          ((prob (lichess-board-gui--parse-eval eval))
-           ;; If flipped (Black perspective), we should invert the gauge?
-           ;; Standard: White advantage always creates White bar at bottom?
-           ;; Usually gauge is absolute: white at bottom.
-           ;; If board is flipped, gauge is often flipped too?
-           ;; Lichess: Gauge stays white-bottom usually.
-           ;; Let's keep it absolute: White is bottom (y=max), Black is top (y=0).
-           (white-h (* board-size prob))
-           (white-y (- board-size white-h))
-           (gx (+ board-size padding)))
+    (when prob
+      (let* ((white-h (* board-size prob))
+             (white-y (- board-size white-h))
+             (gx (+ board-size padding)))
 
         ;; Draw background (Black/Top)
         (svg-rectangle
