@@ -52,11 +52,8 @@ Lichess.el is designed to work seamlessly in both *GUI* and *terminal* (=emacs -
   - [X] Submit moves and play
   - [X] Challenge API (against AI)
   - [X] MELPA packaging
-  - [X] GUI Rendering (SVG) vs TUI separation (lichess-board.el) (v0.2)
-  - [X] UI Improvements
-    - [X] Opponent and user rendering (names, ratings)
-    - [X] Show remaining time (clock)
-    - [X] General status updates
+  - [X] GUI Rendering (SVG) (v0.2)
+  - [X] Material Diff (v0.6)
   - [ ] Puzzles & tactics
 * Installation
 Clone and add to your load path:
@@ -99,6 +96,7 @@ You can configure Lichess.el using =M-x customize-group RET lichess RET= or by s
 *** Network & Performance
 - =lichess-tv-fetch-delay=: Delay (seconds) between TV game fetches to prevent rate-limiting. Default: 0.12.
 - =lichess-util-eval-delay=: Minimum delay (seconds) between cloud evaluation requests. Default: 1.0.
+- =lichess-board-gui-evaluation-gauge-width=: Width of the evaluation gauge in pixels. Default: 12.
 
 ** use-package Example
 Here is a complete configuration using =use-package=:
