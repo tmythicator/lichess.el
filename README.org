@@ -54,6 +54,7 @@ Lichess.el is designed to work seamlessly in both *GUI* and *terminal* (=emacs -
   - [X] MELPA packaging
   - [X] GUI Rendering (SVG) (v0.2)
   - [X] Material Diff (v0.6)
+  - [ ] Tournament Broadcasts (multiple parallel boards)
   - [ ] Puzzles & tactics
 * Installation
 Clone and add to your load path:
