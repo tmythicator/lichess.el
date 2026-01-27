@@ -105,7 +105,7 @@ If you are watching a game and want to inspect its state:
     ;; => ["rnbqk..." ...]
     ```
 
-[[file:demo/lichess-dev-example.png]]
+![Lichess Dev Example](demo/lichess-dev-repl.png)
 
 ### Clean Environment
 
