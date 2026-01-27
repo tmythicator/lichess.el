@@ -131,28 +131,7 @@ When in a game buffer (started via =M-x lichess-ai-challenge=):
 - =q= -> Quit stream and close game
 
 * Development
-This project uses a =Makefile= for common development tasks. If you use Nix, you can enter a reproducible environment with all dependencies pre-installed.
-
-** Set up environment (Nix users)
-You can use =direnv= to automatically load the dependencies when you enter the directory:
-#+begin_src bash
-direnv allow
-#+end_src
-
-Alternatively, enter the environment manually:
-#+begin_src bash
-nix develop
-#+end_src
-
-** Common Commands
-- *Format code*: =make format= (uses =elisp-autofmt=)
-- *Run tests*: =make test=
-- *Lint*: =make lint= (uses =package-lint=)
-- *Byte-compile*: =make compile=
-- *Clean*: =make clean= (removes =.elc= files)
-
-** CI/CD
-All pull requests are automatically checked for formatting, linting, and tests via GitHub Actions.
+See [[file:CONTRIBUTING.md][CONTRIBUTING.md]] for instructions on setting up the environment, running tests, and submitting pull requests.
 
 * Credits
 Chess pieces by [[https://en.wikipedia.org/wiki/User:Cburnett][Colin M.L. Burnett]], licensed under [[http://creativecommons.org/licenses/by-sa/3.0/][CC BY-SA 3.0]].

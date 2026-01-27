@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6] - 2026-01-27
+
+### Added
+
+- **Sidebar**: Now displays move history and chat in a dedicated sidebar.
+- **Controls**: Interactive control buttons for game navigation and actions.
+- **Material Diff**: Real-time material difference display.
+
+### Changed
+
+- **UI**: Significant UI updates for better aesthetics and usability.
+- **Compatibility**: Fixed `string-search` issue for Emacs 27.1 compatibility.
+
 ## [0.5] - 2026-01-19
 
 ### Changed
