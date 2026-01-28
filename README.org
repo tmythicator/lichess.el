@@ -27,6 +27,9 @@ Lichess.el is designed to work seamlessly in both *GUI* and *terminal* (=emacs -
   - [X] Live Lichess TV channels list (=M-x lichess-tv=)
   - [X] Select a game with =RET= to watch it live inside Emacs.
   - [X] Inspect any TV channel (=M-x lichess-tv-debug=)
+- Tournament Broadcasts
+  - [X] Browse live broadcasts (=M-x lichess-broadcast-list=)
+  - [X] Watch round with auto-updates in grid view.
 - Live Game Watcher
   - [X] Stream any Lichess game by its ID (M-x lichess-game-watch).
   - [X] Real-time board updates via the NDJSON stream.
@@ -54,7 +57,7 @@ Lichess.el is designed to work seamlessly in both *GUI* and *terminal* (=emacs -
   - [X] MELPA packaging
   - [X] GUI Rendering (SVG) (v0.2)
   - [X] Material Diff (v0.6)
-  - [ ] Tournament Broadcasts (multiple parallel boards)
+  - [X] Tournament Broadcasts (v0.7)
   - [ ] Puzzles & tactics
 * Installation
 Clone and add to your load path:
@@ -118,6 +121,7 @@ Here is a complete configuration using =use-package=:
 - =M-x lichess-tv= -> show TV channels list
   - =g= refreshes list
   - =RET= opens game on the current line
+- =M-x lichess-broadcast-list= -> browse live tournament broadcasts
 - =M-x lichess-ai-challenge= -> start a new game against Stockfish
 - =M-x lichess-game-watch= -> watch a specific game ID
 

@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7] - 2026-01-28
+
+### Added
+
+- **Tournament Broadcasts**: New modules `lichess-broadcast-list.el` and `lichess-broadcast-view.el` for watching live tournament broadcasts in a grid layout.
+- **API module**: Centralized all Lichess API calls into `lichess-api.el` for better maintainability and robustness.
+
+### Fixed
+
+- **Unicode**: Added proper UTF-8 decoding for HTTP responses to handle international names.
+- **Robustness**: Fixed a crash in `lichess-util--aget` when handling mixed key types (symbols/strings/numbers).
+- **Broadcast Fetching**: Implemented ultra-minimal URL-to-API-path detection for broadcast rounds.
+
+### Changed
+
+- **Code Quality**: Refactored broadcast views using Clojure-style functional patterns (pcase-let, sequence operations).
+- **Namespace Alignment**: Renamed all broadcast-related symbols to follow package naming conventions.
+- **Versioning**: Bumped project version to 0.7.
+
 ## [0.6] - 2026-01-27
 
 ### Added
