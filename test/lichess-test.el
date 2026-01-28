@@ -34,7 +34,12 @@
     (should (equal (lichess-util--aget ht "name") "Bob"))
     (should (equal (lichess-util--aget ht 'title) "IM"))
     (should (equal (lichess-util--aget ht "title") "IM"))
-    (should (equal (lichess-util--aget ht 'nonexistent) nil))))
+    (should (equal (lichess-util--aget ht 'nonexistent) nil)))
+
+  ;; Regression test for mixed key types (crash with string=)
+  (let ((mixed-alist '((123 . "number-key") ("str" . "string-key"))))
+    (should (equal (lichess-util--aget mixed-alist "str") "string-key"))
+    (should (equal (lichess-util--aget mixed-alist 'str) "string-key"))))
 
 (ert-deftest lichess-util-game-vs-test ()
   "Test `lichess-util--game->vs`."

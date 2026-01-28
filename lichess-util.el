@@ -46,7 +46,7 @@
                (intern key)
              key)))
       (or (alist-get sym obj nil nil #'eq)
-          (alist-get str obj nil nil #'string=))))
+          (alist-get str obj nil nil #'equal))))
    (t
     nil)))
 
