@@ -49,6 +49,17 @@ EXTRA (alist) is appended.  ACCEPT, when non-nil, sets Accept header."
       url-or-endpoint
     (concat "https://lichess.org" url-or-endpoint)))
 
+(defun lichess-http--ensure-utf8 (str)
+  "Ensure STR is decoded as UTF-8.
+If STR contains only byte-range characters (0-255) but has high-bit chars,
+it is likely raw bytes interpreted as Latin-1 by `url-retrieve'.
+In that case, we decode it as UTF-8.
+If STR already contains wide characters (> 255), we return it as-is."
+  (if (and (not (string-match-p "[^\x00-\xff]" str))
+           (string-match-p "[\x80-\xff]" str))
+      (decode-coding-string str 'utf-8)
+    str))
+
 ;;;; Core async request
 (defun lichess-http-request (url-or-endpoint callback &rest plist)
   "Perform an async HTTP request and call CALLBACK with a cons.
@@ -102,9 +113,10 @@ CALLBACK receives (STATUS . VALUE), where VALUE is:
                     (point) (point-max))))
               (funcall callback (cons status body))))
            (_
-            (let* ((body
+            (let* ((raw-body
                     (buffer-substring-no-properties
                      (point) (point-max)))
+                   (body (lichess-http--ensure-utf8 raw-body))
                    (json
                     (condition-case _
                         (let ((json-object-type 'alist)
