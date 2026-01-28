@@ -20,6 +20,7 @@
 
 (require 'lichess-core)
 (require 'lichess-util)
+(require 'lichess-api)
 (require 'lichess-fen)
 (require 'lichess-board)
 (require 'text-property-search)
@@ -456,7 +457,7 @@ BUF, MSG-PREFIX, and MSG describe the event."
 
     (setq lichess-game--stream
           (lichess-http-ndjson-open
-           (format "/api/stream/game/%s" id)
+           (lichess-api-stream-game-url id)
            :buffer-name (buffer-name buf)
            :on-open
            (apply-partially #'lichess-game--stream-on-open
@@ -478,12 +479,11 @@ This uses /api/board/game/stream/{ID} which has no delay."
     (lichess-game-stream-stop)
     (setq lichess-game--stream
           (lichess-http-ndjson-open
-           (format "/api/board/game/stream/%s" id)
+           (lichess-api-stream-game-board-url id)
            :buffer-name (buffer-name buf)
            :on-open
-           (apply-partially
-            #'lichess-game--stream-on-open
-            id buf "Connecting to your game (Zero-delay)")
+           (apply-partially #'lichess-game--stream-on-open
+                            id buf "Connecting to your game")
            :on-event
            (apply-partially #'lichess-game--board-on-event buf)
            :on-close
@@ -578,8 +578,8 @@ MOVE should be in UCI format (e.g., e2e4)."
     (error "No game ID found for this buffer"))
   (let ((game-id (lichess-game-id lichess-game--state)))
     (message "Sending move %s for game %s..." move game-id)
-    (lichess-http-request
-     (format "/api/board/game/%s/move/%s" game-id move)
+    (lichess-api-board-move
+     game-id move
      (lambda (res)
        (let ((status (car res))
              (json (cdr res)))
@@ -587,8 +587,7 @@ MOVE should be in UCI format (e.g., e2e4)."
              (message "Move %s sent successfully" move)
            (message "Error sending move: %d %s"
                     status
-                    (or (lichess-util--aget json 'error) "")))))
-     :method "POST")))
+                    (or (lichess-util--aget json 'error) ""))))))))
 
 ;;;###autoload
 (defun lichess-game-resign ()
@@ -600,8 +599,8 @@ MOVE should be in UCI format (e.g., e2e4)."
   (when (yes-or-no-p "Really resign this game? ")
     (let ((game-id (lichess-game-id lichess-game--state)))
       (message "Resigning game %s..." game-id)
-      (lichess-http-request
-       (format "/api/board/game/%s/resign" game-id)
+      (lichess-api-board-resign
+       game-id
        (lambda (res)
          (let ((status (car res))
                (json (cdr res)))
@@ -609,8 +608,7 @@ MOVE should be in UCI format (e.g., e2e4)."
                (message "Game resigned.")
              (message "Error resigning: %d %s"
                       status
-                      (or (lichess-util--aget json 'error) "")))))
-       :method "POST"))))
+                      (or (lichess-util--aget json 'error) "")))))))))
 
 ;;;###autoload
 (defun lichess-game-draw ()
@@ -622,8 +620,8 @@ MOVE should be in UCI format (e.g., e2e4)."
   (when (yes-or-no-p "Offer/Accept draw? ")
     (let ((game-id (lichess-game-id lichess-game--state)))
       (message "Sending draw request for game %s..." game-id)
-      (lichess-http-request
-       (format "/api/board/game/%s/draw/yes" game-id)
+      (lichess-api-board-draw
+       game-id 'yes
        (lambda (res)
          (let ((status (car res))
                (json (cdr res)))
@@ -631,8 +629,7 @@ MOVE should be in UCI format (e.g., e2e4)."
                (message "Draw request sent/accepted.")
              (message "Error with draw request: %d %s"
                       status
-                      (or (lichess-util--aget json 'error) "")))))
-       :method "POST"))))
+                      (or (lichess-util--aget json 'error) "")))))))))
 
 (defun lichess-game--get-castling-move (color side)
   "Return UCI castling move string for COLOR and SIDE."

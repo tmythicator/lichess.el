@@ -19,6 +19,7 @@
 
 (require 'lichess-core)
 (require 'lichess-util)
+(require 'lichess-api)
 
 (defcustom lichess-tv-fetch-delay 0.12
   "Delay between successive /api/game requests (seconds) to avoid HTTP 429."
@@ -55,8 +56,7 @@
     (lichess-core-with-buf
      buf (erase-buffer) (insert "Fetching Lichess TV channels…\n"))
     (pop-to-buffer buf))
-  (lichess-http-json
-   "/api/tv/channels" #'lichess-tv--handle-channels))
+  (lichess-api-get-tv-channels #'lichess-tv--handle-channels))
 
 (defun lichess-tv-watch-game-at-point ()
   "Watch the Lichess game on the current line in a new buffer."
@@ -114,24 +114,23 @@ CHAN-NAME is the channel label."
     (run-at-time
      (- at now) nil
      (lambda ()
-       (let ((url (format "/api/game/%s" id)))
-         (lichess-http-json
-          url
-          (lambda (res)
-            (let ((status (car res))
-                  (data (cdr res)))
-              (if (= status 200)
-                  (let ((vs (lichess-util--game->vs data)))
-                    (lichess-tv--update-line marker
-                                             (format
-                                              "%-12s  %-64s  id:%s"
-                                              chan-name vs id)
-                                             id))
-                (lichess-tv--update-line marker
-                                         (format
-                                          "%-12s  id:%s (HTTP %s)"
-                                          chan-name id status)
-                                         id))))))))))
+       (lichess-api-get-game
+        id
+        (lambda (res)
+          (let ((status (car res))
+                (data (cdr res)))
+            (if (= status 200)
+                (let ((vs (lichess-util--game->vs data)))
+                  (lichess-tv--update-line marker
+                                           (format
+                                            "%-12s  %-64s  id:%s"
+                                            chan-name vs id)
+                                           id))
+              (lichess-tv--update-line marker
+                                       (format
+                                        "%-12s  id:%s (HTTP %s)"
+                                        chan-name id status)
+                                       id)))))))))
 
 (defun lichess-tv--insert-channel (pair)
   "Insert a placeholder for PAIR = (CHAN . GAME), then fetch full game and update."

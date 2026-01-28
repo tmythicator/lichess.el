@@ -14,6 +14,7 @@
 ;;; Code:
 
 (require 'lichess-http)
+(require 'lichess-api)
 (require 'lichess-game)
 (require 'lichess-util)
 (require 'url-util)
@@ -55,29 +56,22 @@
 LEVEL is the AI strength.  COLOR is the player color.
 LIMIT and INCREMENT define the time control."
   (message "Challenging Lichess AI level %d..." level)
-  (let* ((data
-          (format
-           "level=%d&color=%s&clock.limit=%d&clock.increment=%d"
-           level color limit increment)))
-    (lichess-http-request
-     "/api/challenge/ai"
-     (lambda (res)
-       (let ((status (car res))
-             (json (cdr res)))
-         (if (memq status '(200 201))
-             (let ((id (lichess-util--aget json 'id)))
-               (if id
-                   (progn
-                     (message "Game started! ID: %s" id)
-                     (lichess-game-play id))
-                 (message
-                  "Error: No game ID returned from Lichess.")))
-           (message "Lichess AI error: %d %s"
-                    status
-                    (or (lichess-util--aget json 'error) "")))))
-     :method "POST"
-     :data data
-     :headers '(("Content-Type" . "application/x-www-form-urlencoded")))))
+  (lichess-api-challenge-ai
+   level (intern color) limit increment nil
+   (lambda (res)
+     (let ((status (car res))
+           (json (cdr res)))
+       (if (memq status '(200 201))
+           (let ((id (lichess-util--aget json 'id)))
+             (if id
+                 (progn
+                   (message "Game started! ID: %s" id)
+                   (lichess-game-play id))
+               (message "Error: No game ID returned from Lichess.")))
+         (message "Lichess AI error: %d %s"
+                  status
+                  (or (lichess-util--aget json 'error) "")))))
+   nil))
 
 
 (provide 'lichess-ai)

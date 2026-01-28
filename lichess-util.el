@@ -14,6 +14,7 @@
 ;;; Code:
 
 (require 'lichess-http)
+(require 'lichess-api)
 
 (defcustom lichess-util-eval-delay 1.0
   "Minimum delay in seconds between cloud evaluation requests."
@@ -119,42 +120,35 @@ Passes the result string to CALLBACK."
           (max current-time lichess-util--next-eval-time)))
     (setq lichess-util--next-eval-time
           (+ scheduled-time lichess-util-eval-delay))
-    (run-at-time (- scheduled-time current-time) nil
-                 (lambda (fen callback)
-                   (let ((url
-                          (format "/api/cloud-eval?fen=%s"
-                                  (url-hexify-string fen))))
-                     (lichess-http-json
-                      url
-                      (lambda (res)
-                        (if (eq (car res) 200)
-                            (when (functionp callback)
-                              (let* ((data (cdr res))
-                                     (pvs
-                                      (lichess-util--aget data 'pvs))
-                                     (best-pv (and pvs (car pvs)))
-                                     (cp
-                                      (and best-pv
-                                           (lichess-util--aget
-                                            best-pv 'cp)))
-                                     (mate
-                                      (and best-pv
-                                           (lichess-util--aget
-                                            best-pv 'mate)))
-                                     (eval-str
-                                      (cond
-                                       (mate
-                                        (format "M%d" mate))
-                                       (cp
-                                        (format "%+.2f"
-                                                (/ (float cp) 100.0)))
-                                       (t
-                                        :unavailable))))
-                                (funcall callback eval-str)))
-                          ;; Non-200 response (e.g. 404)
-                          (when (functionp callback)
-                            (funcall callback :unavailable)))))))
-                 fen callback)))
+    (run-at-time
+     (- scheduled-time current-time) nil
+     (lambda ()
+       (lichess-api-cloud-eval
+        fen
+        (lambda (res)
+          (if (eq (car res) 200)
+              (when (functionp callback)
+                (let* ((data (cdr res))
+                       (pvs (lichess-util--aget data 'pvs))
+                       (best-pv (and pvs (car pvs)))
+                       (cp
+                        (and best-pv
+                             (lichess-util--aget best-pv 'cp)))
+                       (mate
+                        (and best-pv
+                             (lichess-util--aget best-pv 'mate)))
+                       (eval-str
+                        (cond
+                         (mate
+                          (format "M%d" mate))
+                         (cp
+                          (format "%+.2f" (/ (float cp) 100.0)))
+                         (t
+                          :unavailable))))
+                  (funcall callback eval-str)))
+            ;; Non-200 response (e.g. 404)
+            (when (functionp callback)
+              (funcall callback :unavailable)))))))))
 
 (provide 'lichess-util)
 ;;; lichess-util.el ends here
