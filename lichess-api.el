@@ -28,14 +28,15 @@ NB is count (default 20)."
     (lichess-http-json
      (format "/api/broadcast/top?nb=%d" n) callback)))
 
-(defun lichess-api-get-broadcast-round (round-id callback)
-  "Fetch broadcast round data for ROUND-ID.  CALLBACK: (STATUS . DATA)."
-  (lichess-http-json
-   (format "/api/broadcast/round/%s" round-id) callback))
-
-(defun lichess-api-get-broadcast-round-url (round-id)
-  "Return endpoint URL for broadcast ROUND-ID."
-  (format "/api/broadcast/round/%s" round-id))
+(defun lichess-api-get-broadcast-round (url callback)
+  "Fetch broadcast round data for URL.
+Convert URL to API path:
+`https://lichess.org/{fullbroadcastlink}` into
+`/api/{fullbroadcastlink}`.
+CALLBACK is called with (STATUS . DATA)."
+  (let ((path (replace-regexp-in-string "^.*lichess.org" "/api" url)))
+    (lichess-http-json
+     path (lambda (res) (funcall callback res)) nil t)))
 
 (defun lichess-api-get-game (game-id callback)
   "Fetch game data for GAME-ID.  CALLBACK: (STATUS . DATA)."

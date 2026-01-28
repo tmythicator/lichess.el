@@ -15,196 +15,190 @@
 (require 'lichess-core)
 (require 'lichess-util)
 (require 'lichess-http)
-(require 'lichess-game)
+(require 'lichess-api)
+(require 'lichess-fen)
 (require 'lichess-board-gui)
+(require 'lichess-board-tui)
+(require 'subr-x)
+(require 'seq)
+(require 'cl-lib)
 
-;;; Polling & Grid View
+;; I decided to go Clojure-style with this one.
+(defvar-local lichess-broadcast-view--state nil
+  "The broadcast view state plist for the current buffer.
+Properties:
+  :round-id  (string)  The unique ID of the round being watched.
+  :url       (string)  The API URL for updates.
+  :timer     (timer)   The active auto-update timer object.
+  :games     (list)    List of game objects from the last update.")
 
-(defvar-local lichess-broadcast--timer nil)
-(defvar-local lichess-broadcast--round-id nil)
-(defvar-local lichess-broadcast--round-url nil)
-(defvar-local lichess-broadcast--games nil)
-
-(defvar lichess-broadcast-mode-map
+(defvar lichess-broadcast-view-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "q") #'quit-window)
     map)
-  "Keymap for `lichess-broadcast-mode'.")
+  "Keymap for `lichess-broadcast-view-mode'.")
 
 (define-derived-mode
-  lichess-broadcast-mode
-  lichess-core-mode
-  "Lichess-Broadcast"
-  "Mode for watching a live broadcast round."
-  (setq truncate-lines t)
-  ;; Ensure timer is cancelled when buffer is killed
-  (add-hook 'kill-buffer-hook #'lichess-broadcast--cleanup-timer
-            nil
-            t))
+ lichess-broadcast-view-mode
+ lichess-core-mode
+ "Lichess-Broadcast"
+ "Mode for watching a live broadcast round."
+ (setq truncate-lines t)
+ (add-hook 'kill-buffer-hook #'lichess-broadcast-view--cleanup-timer
+           nil t))
 
-(defun lichess-broadcast--cleanup-timer ()
+(defun lichess-broadcast-view--cleanup-timer ()
   "Stop the broadcast timer."
-  (when lichess-broadcast--timer
-    (cancel-timer lichess-broadcast--timer)
-    (setq lichess-broadcast--timer nil)))
+  (when-let* ((timer
+               (plist-get lichess-broadcast-view--state :timer)))
+    (cancel-timer timer)
+    (setq lichess-broadcast-view--state
+          (plist-put lichess-broadcast-view--state :timer nil))))
 
-(defun lichess-broadcast-watch-round (round-id url)
-  "Watch broadcast ROUND-ID (at URL) in a grid view."
-  (interactive "sRound ID: \nsURL: ")
-  (let* ((name (format "*Lichess Broadcast: %s*" round-id))
-         (buf (get-buffer-create name)))
-    (with-current-buffer buf
-      (lichess-broadcast-mode)
-      (setq lichess-broadcast--round-id round-id)
-      (setq lichess-broadcast--round-url url)
-      (lichess-broadcast--fetch-update))
-    (pop-to-buffer buf)))
+(cl-defun
+ lichess-broadcast-view-watch-round
+ (round-id &optional url)
+ "Watch broadcast ROUND-ID (at URL) in a grid view."
+ (interactive "sRound ID: \nsURL: ")
+ (let* ((name (format "*Lichess Broadcast: %s*" round-id))
+        (buf (get-buffer-create name)))
+   (with-current-buffer buf
+     (lichess-broadcast-view-mode)
 
-(defun lichess-broadcast--fetch-update ()
+     ;; Initialize state map
+     (setq lichess-broadcast-view--state
+           (list :round-id round-id :url url))
+     (lichess-broadcast-view--fetch-update))
+   (pop-to-buffer buf)))
+
+(defun lichess-broadcast-view--fetch-update ()
   "Fetch round data and schedule next update."
-  (let ((round-id lichess-broadcast--round-id)
-        (url lichess-broadcast--round-url)
-        (buf (current-buffer)))
-    (when (and round-id (buffer-live-p buf))
-      (let ((primary-path
-             (if (and url (string-match "lichess.org/\\(.*\\)" url))
-                 (concat "/api/" (match-string 1 url))
-               (format "/api/broadcast/round/%s" round-id))))
+  (when-let* ((round-id
+               (plist-get lichess-broadcast-view--state :round-id))
+              (url (plist-get lichess-broadcast-view--state :url))
+              (buf (current-buffer))
+              (_ (buffer-live-p buf)))
 
-        (lichess-http-json
-         primary-path
-         (lambda (res)
-           (let ((status (car res)))
-             (if (and (/= status 200)
-                      url
-                      (not
-                       (string=
-                        primary-path
-                        (format "/api/broadcast/round/%s" round-id))))
-                 ;; Fallback to short path if primary failed and was different
-                 (let ((fallback-path
-                        (format "/api/broadcast/round/%s" round-id)))
-                   (message
-                    "Broadcast fetch failed (%s), retrying with: %s"
-                    status fallback-path)
-                   (lichess-http-json
-                    fallback-path
-                    (lambda (res2)
-                      (lichess-broadcast--handle-update
-                       res2 round-id))
-                    nil t)) ;; retry anonymous
-               ;; No fallback needed or already used
-               (lichess-broadcast--handle-update res round-id))))
-         nil t) ;; primary anonymous
+    (lichess-api-get-broadcast-round
+     url
+     (lambda (res)
+       (lichess-broadcast-view--handle-update res round-id)))
 
-        (setq lichess-broadcast--timer
-              (run-at-time
-               5 nil #'lichess-broadcast--fetch-update))))))
+    ;; Schedule next update in state
+    (setq lichess-broadcast-view--state
+          (plist-put
+           lichess-broadcast-view--state
+           :timer
+           (run-at-time
+            5 nil #'lichess-broadcast-view--fetch-update)))))
 
-(defun lichess-broadcast--handle-update (res round-id)
+(defun lichess-broadcast-view--handle-update (res round-id)
   "Handle round update JSON RES for ROUND-ID."
-  (let ((status (car res))
-        (data (cdr res)))
-    (let ((buf
-           (get-buffer (format "*Lichess Broadcast: %s*" round-id))))
-      (when (buffer-live-p buf)
-        (with-current-buffer buf
-          (let ((inhibit-read-only t)
-                (pt (point)))
-            (erase-buffer)
-            (if (/= status 200)
-                (insert
-                 (format
-                  "Error fetching broadcast round %s: HTTP %s\n\nEnsure this round is accessible via API."
-                  round-id status))
-              (let* ((games
-                      (append (lichess-util--aget data 'games) nil)))
-                (message "Broadcast received %d games" (length games))
-                (lichess-broadcast--render-grid games)))
-            (goto-char pt)))))))
+  (pcase-let* ((`(,status . ,data) res)
+               (buf
+                (get-buffer
+                 (format "*Lichess Broadcast: %s*" round-id))))
+    (when (buffer-live-p buf)
+      (with-current-buffer buf
+        (let ((inhibit-read-only t)
+              (pt (point)))
+          (erase-buffer)
+          (if (/= status 200)
+              (insert
+               (format
+                "Error fetching broadcast %s: %s\n\nEnsure accessible via API."
+                round-id status))
+            (let ((games
+                   (append (lichess-util--aget data 'games) nil)))
+              ;; Update state map
+              (setq lichess-broadcast-view--state
+                    (plist-put
+                     lichess-broadcast-view--state
+                     :games games))
+              (message "Broadcast received %d games" (length games))
+              (lichess-broadcast-view--render-grid games)))
+          (goto-char pt))))))
 
-(defun lichess-broadcast--render-grid (games)
+(defun lichess-broadcast-view--render-grid (games)
   "Render GAMES in a grid layout."
   (if (null games)
       (insert "No games in this round.")
-    (let*
-        ((width (window-width))
-         ;; Estimate board width: rank/file labels + board + margins ~= 20-25 chars
-         ;; Let's assume ~30 chars per column for safety in TUI
-         (col-width 40)
-         (cols (max 1 (/ width col-width)))
-         (rows (/ (+ (length games) cols -1) cols)))
+
+    (let* ((width (window-width))
+           (col-width 40)
+           (cols (max 1 (/ width col-width))))
 
       (insert
        (format "Round Status: %d games active\n\n" (length games)))
 
-      (dotimes (r rows)
-        (let ((row-games (seq-take (seq-drop games (* r cols)) cols))
-              (max-lines 0)
-              (rendered-blocks '()))
+      (seq-do
+       (lambda (row)
+         (lichess-broadcast-view--render-row row col-width))
+       (seq-partition games cols)))))
 
-          ;; 1. Render each game in the row to a list of strings
-          (dolist (g row-games)
-            (push (lichess-broadcast--render-game-block g col-width)
-                  rendered-blocks))
-          (setq rendered-blocks (nreverse rendered-blocks))
+(defun lichess-broadcast-view--render-row (row-games col-width)
+  "Render and insert a row of ROW-GAMES.
+Each game is rendered to a block of lines, then those blocks are
+joined side-by-side using COL-WIDTH spacing."
+  (let* ((blocks
+          (mapcar
+           (lambda (g)
+             (lichess-broadcast-view--render-game-block g col-width))
+           row-games))
+         (height (apply #'max (mapcar #'length blocks))))
 
-          ;; 2. Determine max height (lines)
-          (setq max-lines
-                (apply #'max (mapcar #'length rendered-blocks)))
+    (dotimes (i height)
+      (dolist (block blocks)
+        (let ((line (or (nth i block) "")))
+          (insert (format (format "%%-%ds  " col-width) line))))
+      (insert "\n"))
+    (insert "\n")))
 
-          ;; 3. Print line by line
-          (dotimes (L max-lines)
-            (dolist (block rendered-blocks)
-              (let ((line (or (nth L block) "")))
-                (insert (format (format "%%-%ds  " col-width) line))))
-            (insert "\n"))
+(cl-defun
+ lichess-broadcast-view--render-game-block
+ (game width &key (style :auto))
+ "Render a single GAME to a list of lines, constrained to WIDTH.
+Optional STYLE argument can force :svg or :tui."
+ (pcase-let*
+     ((`(,white ,black)
+       (append (lichess-util--aget game 'players) nil))
+      (fen
+       (or
+        (lichess-util--aget game 'fen)
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"))
+      (pos
+       (condition-case nil
+           (lichess-fen-parse fen)
+         (error
+          nil)))
+      (w-name (lichess-util-fmt-user-obj white))
+      (b-name (lichess-util-fmt-user-obj black))
+      (header
+       (substring (format "%s vs %s" w-name b-name)
+                  0
+                  (min width (+ (length w-name) (length b-name) 4))))
+      (use-svg?
+       (or (eq style :svg)
+           (and (eq style :auto)
+                (boundp 'lichess-board-gui-preferred-style)
+                (string= lichess-board-gui-preferred-style "svg")
+                (lichess-board-gui-available-p)))))
 
-          (insert "\n"))))))
+   (if (and use-svg? pos)
+       (let ((svg-str
+              (lichess-board-gui-draw
+               pos
+               (if (eq (lichess-pos-stm pos) 'b)
+                   'black
+                 'white))))
+         (list header svg-str))
 
-(defun lichess-broadcast--render-game-block (game width)
-  "Render a single GAME to a list of lines, constrained to WIDTH.
-Returns a list of strings (lines) to be displayed."
-  (let*
-      ((players (append (lichess-util--aget game 'players) nil)) ;; Ensure list for safely accessing nth
-       (white (nth 0 players))
-       (black (nth 1 players))
-       (fen
-        (or
-         (lichess-util--aget game 'fen)
-         "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"))
-       (pos
-        (condition-case nil
-            (lichess-fen-parse fen)
-          (error
-           nil)))
-       (w-name (or (lichess-util--aget white 'name) "White"))
-       (b-name (or (lichess-util--aget black 'name) "Black"))
-       (header
-        (substring (format "%s vs %s" w-name b-name)
-                   0
-                   (min width (+ (length w-name) (length b-name) 4))))
-       ;; Check preferred style
-       (svg-p
-        (and (boundp 'lichess-board-gui-preferred-style)
-             (string= lichess-board-gui-preferred-style "svg")
-             (lichess-board-gui-available-p))))
-    (if (and svg-p pos)
-        ;; SVG Mode: Return header + 1 line containing the image
-        (let ((svg-str
-               (lichess-board-gui-draw
-                pos
-                (if (eq (lichess-pos-stm pos) 'b)
-                    'black
-                  'white))))
-          (list header svg-str))
-      ;; TUI Mode
-      (let* ((board-str
-              (if pos
-                  (lichess-board-tui-draw pos "unicode" 'from-stm)
-                "[Invalid Position]"))
-             (lines (split-string board-str "\n")))
-        (cons header lines)))))
+     (let* ((board-str
+             (if pos
+                 (lichess-board-tui-draw pos "unicode" 'from-stm)
+               "[Invalid Position]"))
+            (lines (split-string board-str "\n")))
+       (cons header lines)))))
 
 (provide 'lichess-broadcast-view)
 ;;; lichess-broadcast-view.el ends here

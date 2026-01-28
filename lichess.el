@@ -45,8 +45,8 @@
 (require 'lichess-ai)
 (require 'lichess-fen)
 (require 'lichess-board)
+(require 'lichess-broadcast-list)
 (require 'lichess-board-tui)
-
 
 (defgroup lichess nil
   "Lichess client."
@@ -63,6 +63,7 @@
   (interactive)
   (let* ((base-choices
           '(("Lichess TV: Show channels" . lichess-tv)
+            ("Lichess Broadcasts" . lichess-broadcast-list)
             ("Lichess: Watch game" . lichess-game-watch)
             ("Lichess: Play against AI" . lichess-ai-challenge)
             ("Settings: Set Board Style" . lichess-set-style)))
