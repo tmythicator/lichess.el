@@ -63,6 +63,7 @@ PLIST keys:
   :accept   Accept header (e.g., \"application/json\")
   :data     Request body string (UTF-8)
   :parse    One of: \='json (default), \='raw (return raw body string)
+  :anonymous If non-nil, do not send Authorization header
 
 CALLBACK receives (STATUS . VALUE), where VALUE is:
   - parsed JSON object when :parse is \='json and parsing succeeds
@@ -73,9 +74,15 @@ CALLBACK receives (STATUS . VALUE), where VALUE is:
          (accept (plist-get plist :accept))
          (data (plist-get plist :data))
          (parse (or (plist-get plist :parse) 'json))
+         (anon (plist-get plist :anonymous))
          (url-request-method method)
          (url-request-extra-headers
-          (lichess-http--auth-headers headers accept))
+          (if anon
+              (append
+               (when accept
+                 `(("Accept" . ,accept)))
+               headers)
+            (lichess-http--auth-headers headers accept)))
          (url-request-data
           (when data
             (encode-coding-string data 'utf-8)))
@@ -111,14 +118,17 @@ CALLBACK receives (STATUS . VALUE), where VALUE is:
            (kill-buffer temp-buf))))
      nil t)))
 
-(defun lichess-http-json (url-or-endpoint callback &optional headers)
+(defun lichess-http-json
+    (url-or-endpoint callback &optional headers anonymous)
   "GET JSON from URL-OR-ENDPOINT and call CALLBACK with (STATUS . JSON-or-nil).
-HEADERS is an alist to add; Authorization is added automatically if available."
+HEADERS is an alist to add
+Authorization is added automatically unless ANONYMOUS is non-nil."
   (lichess-http-request url-or-endpoint callback
                         :method "GET"
                         :accept "application/json"
                         :headers headers
-                        :parse 'json))
+                        :parse 'json
+                        :anonymous anonymous))
 
 ;;;; NDJSON streaming (manual TLS socket)
 (cl-defstruct lichess-http-stream proc buf seen-headers chunk-tail)
