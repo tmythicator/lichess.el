@@ -440,10 +440,9 @@ BUF is the target buffer, OBJ is the parsed JSON event."
            (let* ((current-pos (lichess-fen-apply-moves ipos moves))
                   (current-fen (lichess-fen-pos->fen current-pos)))
              (lichess-game--fen-history-vpush current-fen)
-             (when (lichess-game-live-mode state)
-               (setf (lichess-game-current-idx state)
-                     (1- (length (lichess-game-fen-history state))))
-               (lichess-game-render))))
+             (setf (lichess-game-current-idx state)
+                   (1- (length (lichess-game-fen-history state))))
+             (lichess-game-render)))
        ;; No moves, but status update?
        (when (lichess-util--aget state-obj 'status)
          (lichess-game-render))))))
@@ -626,11 +625,12 @@ MOVE should be in UCI format (e.g., e2e4)."
                (json (cdr res)))
            (if (= status 200)
                (progn
-                 (message "Game resigned.")
-                 (lichess-announce-event "Game resigned"))
-             (message "Error resigning: %d %s"
-                      status
-                      (or (lichess-util--aget json 'error) "")))))))))
+                 (let ((msg "Game resign event sent"))
+                   (message msg)
+                   (lichess-announce-event msg))))
+           (message "Error resigning: %d %s"
+                    status
+                    (or (lichess-util--aget json 'error) ""))))))))
 
 ;;;###autoload
 (defun lichess-game-draw ()
@@ -649,9 +649,9 @@ MOVE should be in UCI format (e.g., e2e4)."
                (json (cdr res)))
            (if (= status 200)
                (progn
-                 (message "Draw request sent/accepted.")
-                 (lichess-announce-event
-                  "Draw request sent or accepted"))
+                 (let ((msg "Draw request sent"))
+                   (message msg)
+                   (lichess-announce-event msg)))
              (message "Error with draw request: %d %s"
                       status
                       (or (lichess-util--aget json 'error) "")))))))))
@@ -943,18 +943,29 @@ Stop the clock in BUF if the game ended."
       (setf (lichess-game-status state) status))
     (when winner
       ;; 'winner' in JSON is usually "white" or "black" string
-      (setf (lichess-game-winner state) (intern winner)))
+      (setf (lichess-game-winner state)
+            (if (stringp winner)
+                (intern winner)
+              winner)))
 
     ;; Stop clock if game ended
     (when (and status (not (string= status "started")))
       (setf (lichess-game-live-mode state) nil)
       (lichess-game--stop-timer buf)
-      (lichess-announce-event
-       (format "Game %s. %s"
-               status
-               (if winner
-                   (format "%s won" (capitalize (symbol-name winner)))
-                 ""))))))
+      (let ((winner-name
+             (cond
+              ((stringp winner)
+               winner)
+              ((and winner (symbolp winner))
+               (symbol-name winner))
+              (t
+               nil))))
+        (lichess-announce-event
+         (format "Game %s. %s"
+                 status
+                 (if winner-name
+                     (format "%s won" (capitalize winner-name))
+                   "")))))))
 
 (defun lichess-game--update-clocks (state obj)
   "Update clock times in STATE from OBJ.

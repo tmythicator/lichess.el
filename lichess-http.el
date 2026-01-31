@@ -211,7 +211,6 @@ Arguments:
                       (when (functionp on-event)
                         (funcall on-event obj)))
                   (error
-                   ;; ignore malformed line; streams can be mid-chunk
                    nil))))))
           (setq tail (car (last lines)))))))
    (set-process-sentinel
