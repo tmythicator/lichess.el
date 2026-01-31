@@ -47,6 +47,7 @@
 (require 'lichess-board)
 (require 'lichess-broadcast-list)
 (require 'lichess-board-tui)
+(require 'lichess-announce)
 
 (defgroup lichess nil
   "Lichess client."

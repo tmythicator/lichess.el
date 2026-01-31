@@ -23,6 +23,7 @@
 (require 'lichess-api)
 (require 'lichess-fen)
 (require 'lichess-board)
+(require 'lichess-announce)
 (require 'text-property-search)
 
 (defvar lichess-game--stream nil
@@ -34,6 +35,9 @@
 
 (defvar-local lichess-game--state nil
   "Buffer-local `lichess-game` struct containing all game state.")
+
+(defvar-local lichess-game--last-announced-idx -1
+  "Move index that was last announced to prevents duplicates.")
 
 (defvar lichess-game-buffer-mode-map
   (let ((m (make-sparse-keymap)))
@@ -109,7 +113,16 @@ All parameters are derived from the buffer-local `lichess-game--state'."
                 (lichess-game--sidebar-buffer-name
                  (lichess-game-id state)))))
           (when (buffer-live-p side-buf)
-            (lichess-game-render-sidebar (current-buffer))))))))
+            (lichess-game-render-sidebar (current-buffer))))
+
+        ;; Accessibility: Announce move
+        (when (and idx
+                   (/= idx (or lichess-game--last-announced-idx -1)))
+          (setq-local lichess-game--last-announced-idx idx)
+          (lichess-announce-game-move
+           (lichess-game-moves-str state)
+           idx
+           (lichess-pos-stm pos)))))))
 
 (defun lichess-game-history-previous ()
   "Move to the previous position in game history."
@@ -501,6 +514,8 @@ This uses /api/board/game/stream/{ID} which has no delay."
       (let ((hist (lichess-game-fen-history state)))
         (message "Batch fetching evaluations for %d moves..."
                  (length hist))
+        (lichess-announce-event
+         (format "Fetching evaluations for %d moves" (length hist)))
         (dotimes (i (length hist))
           (let ((cached-eval
                  (gethash i (lichess-game-eval-cache state))))
@@ -541,6 +556,8 @@ This uses /api/board/game/stream/{ID} which has no delay."
                              "auto"))
            (new-persp (intern new-persp-str)))
       (setf (lichess-game-perspective state) new-persp)
+      (lichess-announce-event
+       (format "Perspective set to %s" new-persp-str))
       (when idx
         (lichess-core-with-buf
          (current-buffer) (lichess-game-render))))))
@@ -555,6 +572,8 @@ This uses /api/board/game/stream/{ID} which has no delay."
                 'black
               'white)))
       (setf (lichess-game-perspective state) new-persp)
+      (lichess-announce-event
+       (format "Board flipped to %s" new-persp))
       (lichess-game-render))))
 
 ;;;###autoload
@@ -565,7 +584,8 @@ This uses /api/board/game/stream/{ID} which has no delay."
       (progn
         (lichess-http-ndjson-close lichess-game--stream)
         (setq lichess-game--stream nil)
-        (message "Lichess NDJSON stream stopped."))
+        (message "Lichess NDJSON stream stopped.")
+        (lichess-announce-event "NDJSON stream stopped"))
     (message "No active Lichess NDJSON stream.")))
 
 ;;;###autoload
@@ -605,7 +625,9 @@ MOVE should be in UCI format (e.g., e2e4)."
          (let ((status (car res))
                (json (cdr res)))
            (if (= status 200)
-               (message "Game resigned.")
+               (progn
+                 (message "Game resigned.")
+                 (lichess-announce-event "Game resigned"))
              (message "Error resigning: %d %s"
                       status
                       (or (lichess-util--aget json 'error) "")))))))))
@@ -626,7 +648,10 @@ MOVE should be in UCI format (e.g., e2e4)."
          (let ((status (car res))
                (json (cdr res)))
            (if (= status 200)
-               (message "Draw request sent/accepted.")
+               (progn
+                 (message "Draw request sent/accepted.")
+                 (lichess-announce-event
+                  "Draw request sent or accepted"))
              (message "Error with draw request: %d %s"
                       status
                       (or (lichess-util--aget json 'error) "")))))))))
@@ -713,12 +738,14 @@ MOVE should be in UCI format (e.g., e2e4)."
 (defun lichess-game-castle-kingside ()
   "Castle Kingside (O-O)."
   (interactive)
+  (lichess-announce-event "Kingside castle requested")
   (lichess-game--do-castle 'kingside))
 
 ;;;###autoload
 (defun lichess-game-castle-queenside ()
   "Castle Queenside (O-O-O)."
   (interactive)
+  (lichess-announce-event "Queenside castle requested")
   (lichess-game--do-castle 'queenside))
 
 
@@ -921,7 +948,13 @@ Stop the clock in BUF if the game ended."
     ;; Stop clock if game ended
     (when (and status (not (string= status "started")))
       (setf (lichess-game-live-mode state) nil)
-      (lichess-game--stop-timer buf))))
+      (lichess-game--stop-timer buf)
+      (lichess-announce-event
+       (format "Game %s. %s"
+               status
+               (if winner
+                   (format "%s won" (capitalize (symbol-name winner)))
+                 ""))))))
 
 (defun lichess-game--update-clocks (state obj)
   "Update clock times in STATE from OBJ.

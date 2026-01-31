@@ -102,6 +102,10 @@ You can configure Lichess.el using =M-x customize-group RET lichess RET= or by s
 - =lichess-util-eval-delay=: Minimum delay (seconds) between cloud evaluation requests. Default: 1.0.
 - =lichess-board-gui-evaluation-gauge-width=: Width of the evaluation gauge in pixels. Default: 12.
 
+*** Accessibility
+- =lichess-announce-events=: When non-nil, announce game events (moves, resignation, results) in the echo area for screen readers. Default: nil.
+- =lichess-announce-use-buffer=: When non-nil, log all announcements to a persistent =*Lichess Announcer*= buffer. Default: nil.
+
 ** use-package Example
 Here is a complete configuration using =use-package=:
 
