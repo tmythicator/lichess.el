@@ -40,7 +40,7 @@ EVAL and INFO are read from POS."
             lichess-board-tui-preferred-style)))
     (if (and (string= style "svg") gui-avail)
         (lichess-board-gui-draw
-         pos perspective highlights (lichess-pos-eval pos))
+         pos perspective highlights (plist-get pos :eval))
       (let ((tui-style
              (if (string= style "svg")
                  "unicode"
@@ -77,7 +77,7 @@ Handles face application for TUI modes, avoiding interference with GUI SVGs."
          (board-str
           (if gui-p
               (lichess-board-gui-draw
-               pos perspective highlights (lichess-pos-eval pos))
+               pos perspective highlights (plist-get pos :eval))
             (let ((tui-style
                    (if (string= style "svg")
                        "unicode"
@@ -118,8 +118,8 @@ Uses `eval` and `info` from POS if present."
       (insert "\n" postamble))
 
     ;; 4. Info/Footer
-    (when (lichess-pos-info pos)
-      (insert "\n" (lichess-pos-info pos)))
+    (when (plist-get pos :info)
+      (insert "\n" (plist-get pos :info)))
 
     ;; 5. Reset cursor
     (goto-char (point-min))))

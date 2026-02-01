@@ -62,22 +62,22 @@
   "Test `lichess-fen-parse`."
   (let* ((fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
          (pos (lichess-fen-parse fen)))
-    (should (eq (lichess-pos-stm pos) 'w))
-    (should (equal (lichess-pos-castle pos) "KQkq"))
-    (should (equal (lichess-pos-ep pos) nil))
-    (should (= (lichess-pos-halfmove pos) 0))
-    (should (= (lichess-pos-fullmove pos) 1))
+    (should (eq (plist-get pos :stm) 'w))
+    (should (equal (plist-get pos :castle) "KQkq"))
+    (should (equal (plist-get pos :ep) nil))
+    (should (= (plist-get pos :halfmove) 0))
+    (should (= (plist-get pos :fullmove) 1))
     ;; Check corner pieces
-    (should (= (aref (aref (lichess-pos-board pos) 0) 0) ?r))
-    (should (= (aref (aref (lichess-pos-board pos) 7) 7) ?R)))
+    (should (= (aref (aref (plist-get pos :board) 0) 0) ?r))
+    (should (= (aref (aref (plist-get pos :board) 7) 7) ?R)))
 
   (let* ((fen "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3")
          (pos (lichess-fen-parse fen)))
-    (should (eq (lichess-pos-stm pos) 'w))
-    (should (= (lichess-pos-halfmove pos) 2))
-    (should (= (lichess-pos-fullmove pos) 3))
+    (should (eq (plist-get pos :stm) 'w))
+    (should (= (plist-get pos :halfmove) 2))
+    (should (= (plist-get pos :fullmove) 3))
     ;; Check piece at e4
-    (should (= (aref (aref (lichess-pos-board pos) 4) 4) ?P))))
+    (should (= (aref (aref (plist-get pos :board) 4) 4) ?P))))
 
 (ert-deftest lichess-fen-rows-to-board-test ()
   "Test `lichess-fen--rows->board`."
@@ -167,7 +167,7 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
   "Test `lichess-board-tui-draw` with evaluation bar."
   (let* ((fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
          (pos (lichess-fen-parse fen)))
-    (setf (lichess-pos-eval pos) "0.0")
+    (plist-put pos :eval "0.0")
     (let ((render (lichess-board-tui-draw pos "ascii" 'white)))
       ;; Check if "Eval" header and evaluation blocks are present
       (should (string-match "Eval" render))
@@ -189,7 +189,7 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
     (with-temp-buffer
       ;; Setup mock state
       (setq-local lichess-game--state
-                  (make-lichess-game
+                  (lichess-game-create
                    :fen-history (vector fen)
                    :current-idx 0
                    :perspective 'white
@@ -207,7 +207,7 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
 
 (ert-deftest lichess-board-dispatch-test ()
   "Test that `lichess-board-draw` dispatches correctly."
-  (let ((pos (make-lichess-pos)))
+  (let ((pos (lichess-pos-create)))
     ;; Case 1: Style "svg", GUI available -> calls GUI
     (cl-letf (((symbol-function 'lichess-board-gui-available-p) (lambda () t))
               ((symbol-function 'lichess-board-gui-draw) (lambda (_ _ _ &optional _) "GUI"))

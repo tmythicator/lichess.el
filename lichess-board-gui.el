@@ -129,7 +129,7 @@ EVAL: Optional evaluation string (e.g. \"+1.5\")."
          (svg (svg-create total-width board-size))
          (persp
           (if (or (null perspective) (eq perspective 'auto))
-              (if (eq (lichess-pos-stm pos) 'b)
+              (if (eq (plist-get pos :stm) 'b)
                   'black
                 'white)
             perspective))
@@ -184,7 +184,7 @@ EVAL: Optional evaluation string (e.g. \"+1.5\")."
          :stroke-width 2)))
 
     ;; 3. Draw Pieces
-    (let ((board (lichess-pos-board pos)))
+    (let ((board (plist-get pos :board)))
       (dotimes (r 8)
         (dotimes (c 8)
           (let* ((piece (aref (aref board r) c))

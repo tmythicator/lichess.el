@@ -143,7 +143,7 @@ Authorization is added automatically unless ANONYMOUS is non-nil."
                         :anonymous anonymous))
 
 ;;;; NDJSON streaming (manual TLS socket)
-(cl-defstruct lichess-http-stream proc buf seen-headers chunk-tail)
+;; lichess-http-stream keys: :proc, :buf, :seen-headers, :chunk-tail
 
 (defun lichess-http--chunk-size-line-p (line)
   "Non-nil if LINE look like an HTTP/1.1 chunk-size marker."
@@ -239,7 +239,7 @@ Arguments:
        "Connection: keep-alive\r\n\r\n")))
    (when (functionp on-open)
      (funcall on-open proc buf))
-   (make-lichess-http-stream
+   (list
     :proc proc
     :buf buf
     :seen-headers seen-headers
@@ -248,8 +248,8 @@ Arguments:
 (defun lichess-http-ndjson-close (stream)
   "Close STREAM returned by `lichess-http-ndjson-open'."
   (when (and stream
-             (process-live-p (lichess-http-stream-proc stream)))
-    (delete-process (lichess-http-stream-proc stream))))
+             (process-live-p (plist-get stream :proc)))
+    (delete-process (plist-get stream :proc))))
 
 (provide 'lichess-http)
 ;;; lichess-http.el ends here

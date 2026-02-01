@@ -188,7 +188,7 @@ Optional STYLE argument can force :svg or :tui."
        (let ((svg-str
               (lichess-board-gui-draw
                pos
-               (if (eq (lichess-pos-stm pos) 'b)
+               (if (eq (plist-get pos :stm) 'b)
                    'black
                  'white))))
          (list header svg-str))

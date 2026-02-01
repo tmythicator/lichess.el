@@ -7,7 +7,7 @@
 
 (ert-deftest lichess-game-test-insert-pgn ()
   "Test PGN insertion from game state."
-  (let ((state (make-lichess-game
+  (let ((state (lichess-game-create
                 :id "testgame"
                 :moves-str "e2e4 e7e5 g1f3"
                 :current-idx 3 ;; Start, 1, 2, 3
@@ -21,7 +21,7 @@
 
 (ert-deftest lichess-game-test-insert-pgn-empty ()
   "Test PGN insertion with no moves."
-  (let ((state (make-lichess-game
+  (let ((state (lichess-game-create
                 :id "testgame-empty"
                 :moves-str ""
                 :fen-history (vector "start")))
@@ -32,20 +32,20 @@
 
 (ert-deftest lichess-game-test-flip-board ()
   "Test logic for flipping board perspective."
-  (let ((state (make-lichess-game :perspective 'white)))
+  (let ((state (lichess-game-create :perspective 'white)))
     ;; Default white
-    (should (eq (lichess-game-perspective state) 'white))
+    (should (eq (plist-get state :perspective) 'white))
     
     ;; Mocking the render function to avoid GUI calls
     (cl-letf (((symbol-function 'lichess-game-render) #'ignore))
       ;; Flip to black
       (setq lichess-game--state state)
       (lichess-game-flip-board)
-      (should (eq (lichess-game-perspective state) 'black))
+      (should (eq (plist-get state :perspective) 'black))
       
       ;; Flip back to white
       (lichess-game-flip-board)
-      (should (eq (lichess-game-perspective state) 'white)))))
+      (should (eq (plist-get state :perspective) 'white)))))
 
 (ert-deftest lichess-game-incremental-moves-test ()
   "Test that moves-str is incrementally updated from stream 'lm' events."
@@ -63,30 +63,30 @@
              ((fen . "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2") (lm . "e7e5")))))
       
       ;; Verify initial state
-      (should (string-empty-p (or (lichess-game-moves-str state) "")))
+      (should (string-empty-p (or (plist-get state :moves-str) "")))
 
       ;; Process Event 1
       (lichess-game--stream-on-event (current-buffer) (nth 0 events))
-      (should (string-empty-p (or (lichess-game-moves-str state) "")))
+      (should (string-empty-p (or (plist-get state :moves-str) "")))
 
       ;; Process Event 2 (e2e4)
       (lichess-game--stream-on-event (current-buffer) (nth 1 events))
-      (should (equal (lichess-game-moves-str state) "e2e4"))
+      (should (equal (plist-get state :moves-str) "e2e4"))
 
       ;; Process Event 3 (e7e5)
       (lichess-game--stream-on-event (current-buffer) (nth 2 events))
-      (should (equal (lichess-game-moves-str state) "e2e4 e7e5")))))
+      (should (equal (plist-get state :moves-str) "e2e4 e7e5")))))
 
 (ert-deftest lichess-game-render-readonly-test ()
   "Test that rendering works even when buffer is read-only."
   (with-temp-buffer
     (lichess-game-buffer-mode)
     (setq buffer-read-only t) ;; Enforce read-only
-    (let ((state (make-lichess-game
-                  :id "test"
-                  :fen-history (vector "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-                  :current-idx 0
-                  :eval-cache (make-hash-table :test 'eql))))
+  (let ((state (lichess-game-create
+                :id "test"
+                :fen-history (vector "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+                :current-idx 0
+                :eval-cache (make-hash-table :test 'eql))))
       (setq lichess-game--state state)
       ;; exact behavior: should not error
       (should (progn (lichess-game-render) t))

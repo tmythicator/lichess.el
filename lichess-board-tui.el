@@ -75,10 +75,10 @@ STYLE is \"ascii\" or \"unicode\".
 PERSPECTIVE control rendering style.
 Reads `eval` from POS if present."
   (let* ((unicode (string= style "unicode"))
-         (eval-str (lichess-pos-eval pos))
+         (eval-str (plist-get pos :eval))
          (board-lines
           ;; First, generate the board as a list of strings
-          (let* ((b (lichess-pos-board pos))
+          (let* ((b (plist-get pos :board))
                  (fmt
                   (if unicode
                       #'lichess-board-tui--piece->unicode
@@ -88,7 +88,7 @@ Reads `eval` from POS if present."
                         (char-to-string ch)))))
                  (persp
                   (if (or (null perspective) (eq perspective 'auto))
-                      (if (eq (lichess-pos-stm pos) 'b)
+                      (if (eq (plist-get pos :stm) 'b)
                           'black
                         'white)
                     perspective))
@@ -156,17 +156,17 @@ Reads `eval` from POS if present."
 STYLE is \"ascii\" or \"unicode\"."
   (let* ((persp
           (if (or (null perspective) (eq perspective 'auto))
-              (if (eq (lichess-pos-stm pos) 'b)
+              (if (eq (plist-get pos :stm) 'b)
                   'black
                 'white)
             perspective))
          (stm
-          (if (eq (lichess-pos-stm pos) 'w)
+          (if (eq (plist-get pos :stm) 'w)
               "White"
             "Black"))
-         (castle (or (lichess-pos-castle pos) "-"))
-         (ep (or (lichess-pos-ep pos) "-"))
-         (full (lichess-pos-fullmove pos))
+         (castle (or (plist-get pos :castle) "-"))
+         (ep (or (plist-get pos :ep) "-"))
+         (full (plist-get pos :fullmove))
          (tag
           (cond
            ((string= style "unicode")

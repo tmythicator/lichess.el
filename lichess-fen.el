@@ -7,7 +7,7 @@
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 
 ;;; Commentary:
-;; - lichess-fen-parse: FEN -> position struct
+;; - lichess-fen-parse: FEN -> position plist
 ;; - lichess-fen-render-board: core board renderer
 ;; - lichess-fen-show: interactive preview (ASCII / Unicode)
 
@@ -23,8 +23,26 @@
 (defvar lichess-fen--buf "*Lichess FEN Preview*")
 
 ;;; FEN -> position
+(defun lichess-pos-create (&rest args)
+  "Create a `lichess-pos` plist with defaults, overridden by ARGS."
+  (let ((defaults (list
+                   :board (make-vector 8 (make-vector 8 ?.)) ;; Vector: 8x8 vector (default filled with ?.)
+                   :stm 'w                                   ;; Symbol: Side to move ('w or 'b, default 'w)
+                   :castle "-"                               ;; String: Castling rights (default "-")
+                   :ep nil                                   ;; Cons: En passant square (default nil)
+                   :halfmove 0                               ;; Integer: Halfmove clock (default 0)
+                   :fullmove 1                               ;; Integer: Fullmove number (default 1)
+                   :eval nil                                 ;; String: Cached evaluation
+                   :info nil)))                              ;; String: Info/footer string
+    (while args
+      (let ((key (pop args))
+            (val (pop args)))
+        (plist-put defaults key val)))
+    defaults))
+
 (defun lichess-fen-parse (fen)
-  "Parse FEN string into a `lichess-pos' struct."
+  "Parse FEN string into a `lichess-pos' plist.
+See `lichess-core.el` for the plist structure definition."
   (let*
       ((raw-fen
         (if (string= fen "startpos")
@@ -40,7 +58,7 @@
        (rows (split-string placement "/" t))
        (board (lichess-fen--rows->board rows))
        (ep (lichess-fen--parse-ep ep-s)))
-    (make-lichess-pos
+    (lichess-pos-create
      :board board
      :stm
      (if (string= active "b")
@@ -143,7 +161,7 @@ PERSPECTIVE: `white', `black', or `from-stm' (default `from-stm')."
             'from-stm)))
          (persp
           (if (eq persp-raw 'from-stm)
-              (if (eq (lichess-pos-stm pos) 'b)
+              (if (eq (plist-get pos :stm) 'b)
                   'black
                 'white)
             persp-raw)))
@@ -158,14 +176,14 @@ PERSPECTIVE: `white', `black', or `from-stm' (default `from-stm')."
 (defun lichess-fen-apply-moves (pos moves-str)
   "Return a new `lichess-pos' by applying UCI MOVES-STR to POS.
 MOVES-STR is a space-separated string of UCI moves like \"e2e4 e7e5\"."
-  (let ((new-pos (copy-lichess-pos pos))
+  (let ((new-pos (copy-sequence pos))
         (moves (split-string (or moves-str "") " " t)))
     ;; Deep copy the board vector of vectors
-    (let ((old-board (lichess-pos-board new-pos))
+    (let ((old-board (plist-get new-pos :board))
           (new-board (make-vector 8 nil)))
       (dotimes (i 8)
         (aset new-board i (copy-sequence (aref old-board i))))
-      (setf (lichess-pos-board new-pos) new-board))
+      (plist-put new-pos :board new-board))
 
     (dolist (m moves)
       (lichess-fen--apply-uci-move new-pos m))
@@ -178,9 +196,9 @@ MOVES-STR is a space-separated string of UCI moves like \"e2e4 e7e5\"."
            (f-row (- 8 (- (aref uci 1) ?0)))
            (t-col (- (aref uci 2) ?a))
            (t-row (- 8 (- (aref uci 3) ?0)))
-           (board (lichess-pos-board pos))
+           (board (plist-get pos :board))
            (piece (aref (aref board f-row) f-col))
-           (is-white (eq (lichess-pos-stm pos) 'w)))
+           (is-white (eq (plist-get pos :stm) 'w)))
 
       (when piece
         ;; 1. Handle Castling
@@ -218,18 +236,18 @@ MOVES-STR is a space-separated string of UCI moves like \"e2e4 e7e5\"."
         (aset (aref board f-row) f-col ?.)
 
         ;; 5. Update side to move
-        (setf (lichess-pos-stm pos)
+        (plist-put pos :stm
               (if is-white
                   'b
                 'w))
 
         (unless is-white
-          (setf (lichess-pos-fullmove pos)
-                (1+ (lichess-pos-fullmove pos))))))))
+          (plist-put pos :fullmove
+                (1+ (plist-get pos :fullmove))))))))
 
 (defun lichess-fen-pos->fen (pos)
   "Convert POS struct back into a FEN string."
-  (let* ((board (lichess-pos-board pos))
+  (let* ((board (plist-get pos :board))
          (rows '()))
     (dotimes (r 8)
       (let ((rowv (aref board r))
@@ -251,24 +269,24 @@ MOVES-STR is a space-separated string of UCI moves like \"e2e4 e7e5\"."
     (concat
      (string-join (reverse rows) "/")
      " "
-     (if (eq (lichess-pos-stm pos) 'w)
+     (if (eq (plist-get pos :stm) 'w)
          "w"
        "b")
      " "
-     (or (lichess-pos-castle pos) "-")
+     (or (plist-get pos :castle) "-")
      " "
      "-" ;; simplified ep
      " "
-     (number-to-string (lichess-pos-halfmove pos))
+     (number-to-string (plist-get pos :halfmove))
      " "
-     (number-to-string (lichess-pos-fullmove pos)))))
+     (number-to-string (plist-get pos :fullmove)))))
 
 (defun lichess-fen-material-diff (pos)
   "Calculate material difference for POS.
 Returns a list (w-score b-score w-diff b-diff).
 w-score/b-score: Total material value (P=1, N/B=3, R=5, Q=9).
 w-diff/b-diff: List of characters representing extra pieces for that side."
-  (let ((board (lichess-pos-board pos))
+  (let ((board (plist-get pos :board))
         (w-counts
          (list
           (cons ?P 0)

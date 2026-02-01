@@ -136,10 +136,10 @@ Warns if \"svg\" is selected but unavailable or missing assets."
              (fboundp 'lichess-fen-refresh))
         (funcall #'lichess-fen-refresh))
 
-       ((and (boundp 'lichess-game--current-idx)
-             lichess-game--current-idx
-             (fboundp 'lichess-game-refresh))
-        (funcall #'lichess-game-refresh))))))
+       ((and (boundp 'lichess-game--state)
+             lichess-game--state
+             (fboundp 'lichess-game-render))
+        (funcall #'lichess-game-render))))))
 
 (provide 'lichess)
 ;;; lichess.el ends here

@@ -19,49 +19,9 @@
 (require 'cl-lib)
 (require 'lichess-http)
 
-(cl-defstruct
- lichess-pos "Internal chess position.  Row 0 = rank 8 (top)."
- board ;; vector[8] of vector[8] chars
- stm ;; 'w or 'b
- castle ;; string like "KQkq" or "-"
- ep ;; (row . col) or nil
- halfmove ;; int
- fullmove ;; int
- eval ;; string (optional evaluation)
- info) ;; string (optional footer info)
-
-(cl-defstruct
- lichess-game "State for a Lichess game."
- id ;; string
- variant ;; string (e.g. "standard", "chess960")
- initial-fen ;; string
- initial-pos ;; lichess-pos
- white ;; player-info (alist/plist)
- black ;; player-info (alist/plist)
- my-color ;; 'white, 'black, or nil
- fen-history ;; vector of strings
- moves-str ;; string (space-separated UCI moves)
- eval-cache ;; hash-table
- current-idx ;; int
- live-mode ;; bool
- perspective ;; 'white, 'black, or 'auto
- speed ;; string (e.g. "blitz")
- status ;; string (e.g. "started")
- selected-square ;; symbol e.g. 'e2, or nil
- winner ;; 'white, 'black, or nil
-
- ;;; Clock
- white-clock ;; string "MM:SS"
- black-clock ;; string "MM:SS"
- white-time-ms ;; number
- black-time-ms ;; number
- last-update-time ;; float
- timer) ;; timer object
-
 (defvar lichess-core-mode-map
   (let ((m (make-sparse-keymap)))
     (set-keymap-parent m special-mode-map)
-    ;; TODO: find out, what would be the core-keys for lichess.el navigation
     m)
   "Keymap for `lichess-core-mode'.")
 

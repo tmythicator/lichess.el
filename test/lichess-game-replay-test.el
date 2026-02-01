@@ -33,7 +33,7 @@
         (lichess-game--stream-on-event (current-buffer) evt))
 
       ;; Verification
-      (let ((hist (lichess-game-fen-history state)))
+      (let ((hist (plist-get state :fen-history)))
         ;; Logic currently fails here: it appends everything.
         ;; Expected:
         ;; - If we detect restart, index 0 should be startpos.
