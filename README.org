@@ -19,6 +19,11 @@ Here is a quick demonstration of browsing Lichess TV and watching a live game:
 
 [[file:demo/lichess-tv.gif]]
 
+** Tournament Broadcasts
+Follow live tournaments with a multi-board grid view:
+
+[[file:demo/lichess-broadcasts.png]]
+
 *Display Support*
 Lichess.el is designed to work seamlessly in both *GUI* and *terminal* (=emacs -nw=) versions of Emacs. Rendering uses a simple text-based board for the best compatibility.
 
