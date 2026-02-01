@@ -120,9 +120,7 @@ All parameters are derived from the buffer-local `lichess-game--state'."
                    (/= idx (or lichess-game--last-announced-idx -1)))
           (setq-local lichess-game--last-announced-idx idx)
           (lichess-announce-game-move
-           (plist-get state :moves-str)
-           idx
-           (plist-get pos :stm)))))))
+           (plist-get state :moves-str) idx (plist-get pos :stm)))))))
 
 (defun lichess-game-history-previous ()
   "Move to the previous position in game history."
@@ -178,35 +176,36 @@ immediately after the initial summary state."
             (plist-put state :fen-history hist))))
 
       (unless (and last (string= last fen))
-        (plist-put state :fen-history
-              (vconcat hist (vector fen)))))))
+        (plist-put state :fen-history (vconcat hist (vector fen)))))))
 
 (defun lichess-game-create (&rest args)
   "Create a new game state plist with default values, overridden by ARGS."
-  (let ((defaults (list
-                   :id nil                  ;; String: Game ID (or nil)
-                   :variant nil             ;; Alist: Variant info ((key . "standard") ...)
-                   :initial-fen nil         ;; String: Initial FEN
-                   :initial-pos nil         ;; Plist: Parsed initial position (lichess-pos)
-                   :white nil               ;; Alist: White player info
-                   :black nil               ;; Alist: Black player info
-                   :my-color nil            ;; Symbol: 'white, 'black, or nil (spectator)
-                   :fen-history (make-vector 0 t) ;; Vector: History of FEN strings
-                   :moves-str nil           ;; String: Space-separated moves
-                   :eval-cache (make-hash-table) ;; Hash: Local evaluation cache
-                   :current-idx -1          ;; Integer: Current index in fen-history
-                   :live-mode t             ;; Boolean: t if following live game updates
-                   :perspective 'white      ;; Symbol: 'white or 'black board orientation
-                   :speed nil               ;; String: Game speed class (e.g. "blitz")
-                   :status nil              ;; String: Game status (e.g. "started", "mate")
-                   :selected-square nil     ;; Symbol: Currently selected square (e.g. 'e4)
-                   :winner nil              ;; Symbol: 'white, 'black, or nil
-                   :white-clock "--:--"     ;; String: Formatted white clock time
-                   :black-clock "--:--"     ;; String: Formatted black clock time
-                   :white-time-ms nil       ;; Number: White time in milliseconds
-                   :black-time-ms nil       ;; Number: Black time in milliseconds
-                   :last-update-time nil    ;; Number: Timestamp (float-time) of last update
-                   :timer nil)))            ;; Timer: Active timer object for polling/tick
+  (let
+      ((defaults
+        (list
+         :id nil ;; String: Game ID (or nil)
+         :variant nil ;; Alist: Variant info ((key . "standard") ...)
+         :initial-fen nil ;; String: Initial FEN
+         :initial-pos nil ;; Plist: Parsed initial position (lichess-pos)
+         :white nil ;; Alist: White player info
+         :black nil ;; Alist: Black player info
+         :my-color nil ;; Symbol: 'white, 'black, or nil (spectator)
+         :fen-history (make-vector 0 t) ;; Vector: History of FEN strings
+         :moves-str nil ;; String: Space-separated moves
+         :eval-cache (make-hash-table) ;; Hash: Local evaluation cache
+         :current-idx -1 ;; Integer: Current index in fen-history
+         :live-mode t ;; Boolean: t if following live game updates
+         :perspective 'white ;; Symbol: 'white or 'black board orientation
+         :speed nil ;; String: Game speed class (e.g. "blitz")
+         :status nil ;; String: Game status (e.g. "started", "mate")
+         :selected-square nil ;; Symbol: Currently selected square (e.g. 'e4)
+         :winner nil ;; Symbol: 'white, 'black, or nil
+         :white-clock "--:--" ;; String: Formatted white clock time
+         :black-clock "--:--" ;; String: Formatted black clock time
+         :white-time-ms nil ;; Number: White time in milliseconds
+         :black-time-ms nil ;; Number: Black time in milliseconds
+         :last-update-time nil ;; Number: Timestamp (float-time) of last update
+         :timer nil))) ;; Timer: Active timer object for polling/tick
     ;; Apply overrides
     (while args
       (let ((key (pop args))
@@ -261,10 +260,12 @@ immediately after the initial summary state."
                   (setq new-w (max 0 (- w-ms elapsed-ms)))
                 (setq new-b (max 0 (- b-ms elapsed-ms))))
 
-              (plist-put state :white-clock
-                    (lichess-game--format-time new-w))
-              (plist-put state :black-clock
-                    (lichess-game--format-time new-b))
+              (plist-put
+               state
+               :white-clock (lichess-game--format-time new-w))
+              (plist-put
+               state
+               :black-clock (lichess-game--format-time new-b))
 
               ;; Optimization: Try to update clock in-place to avoid flickering
               (let ((updated-w
@@ -299,8 +300,9 @@ Returns t if successful, nil otherwise."
   (with-current-buffer buf
     (when lichess-game--state
       (lichess-game--stop-timer buf)
-      (plist-put lichess-game--state :timer
-            (run-at-time 1.0 1.0 #'lichess-game--tick buf)))))
+      (plist-put
+       lichess-game--state
+       :timer (run-at-time 1.0 1.0 #'lichess-game--tick buf)))))
 
 (defun lichess-game--stop-timer (&optional buf)
   "Stop the clock ticker for BUF (defaults to current)."
@@ -344,10 +346,12 @@ BUF is the target buffer, OBJ is the parsed JSON event."
      ;; [FIX] Update Moves (Incremental from 'lm')
      (when-let ((lm (lichess-util--aget obj 'lm)))
        (let ((current (or (plist-get state :moves-str) "")))
-         (plist-put state :moves-str
-               (if (string-empty-p current)
-                   lm
-                 (concat current " " lm)))))
+         (plist-put
+          state
+          :moves-str
+          (if (string-empty-p current)
+              lm
+            (concat current " " lm)))))
 
      ;; Update names if found (usually in the first message)
      (when (or white black)
@@ -374,8 +378,9 @@ BUF is the target buffer, OBJ is the parsed JSON event."
            ;; If we were live, or still are, update index to follow game.
            ;; If game just ended, was-live is true, live-mode is false.
            (when (or was-live (plist-get state :live-mode))
-             (plist-put state :current-idx
-                   (1- (length (plist-get state :fen-history))))
+             (plist-put
+              state
+              :current-idx (1- (length (plist-get state :fen-history))))
              (lichess-game-render)))
        ;; If no FEN (e.g. termination event), render if status changed
        (when (lichess-util--aget obj 'status)
@@ -457,8 +462,9 @@ BUF is the target buffer, OBJ is the parsed JSON event."
            (let* ((current-pos (lichess-fen-apply-moves ipos moves))
                   (current-fen (lichess-fen-pos->fen current-pos)))
              (lichess-game--fen-history-vpush current-fen)
-             (plist-put state :current-idx
-                   (1- (length (plist-get state :fen-history))))
+             (plist-put
+              state
+              :current-idx (1- (length (plist-get state :fen-history))))
              (lichess-game-render)))
        ;; No moves, but status update?
        (when (lichess-util--aget state-obj 'status)
@@ -960,10 +966,12 @@ Stop the clock in BUF if the game ended."
       (plist-put state :status status))
     (when winner
       ;; 'winner' in JSON is usually "white" or "black" string
-      (plist-put state :winner
-            (if (stringp winner)
-                (intern winner)
-              winner)))
+      (plist-put
+       state
+       :winner
+       (if (stringp winner)
+           (intern winner)
+         winner)))
 
     ;; Stop clock if game ended
     (when (and status (not (string= status "started")))
@@ -1015,12 +1023,14 @@ or `state.wtime' (ms)."
             sb))))
 
     (when (numberp final-w)
-      (plist-put state :white-clock
-            (lichess-game--format-time final-w))
+      (plist-put
+       state
+       :white-clock (lichess-game--format-time final-w))
       (plist-put state :white-time-ms final-w))
     (when (numberp final-b)
-      (plist-put state :black-clock
-            (lichess-game--format-time final-b))
+      (plist-put
+       state
+       :black-clock (lichess-game--format-time final-b))
       (plist-put state :black-time-ms final-b))))
 
 (defun lichess-game--format-result (state)
@@ -1056,10 +1066,8 @@ or `state.wtime' (ms)."
 (defun lichess-game--format-header (state)
   "Format the game header strings (names, clocks) from STATE.
 Returns a cons cell (TOP . BOTTOM) based on board perspective."
-  (let* ((w-name
-          (lichess-util-fmt-user-obj (plist-get state :white)))
-         (b-name
-          (lichess-util-fmt-user-obj (plist-get state :black)))
+  (let* ((w-name (lichess-util-fmt-user-obj (plist-get state :white)))
+         (b-name (lichess-util-fmt-user-obj (plist-get state :black)))
          (idx (plist-get state :current-idx))
          (hist (plist-get state :fen-history))
          (fen

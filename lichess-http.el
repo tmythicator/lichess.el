@@ -247,8 +247,7 @@ Arguments:
 
 (defun lichess-http-ndjson-close (stream)
   "Close STREAM returned by `lichess-http-ndjson-open'."
-  (when (and stream
-             (process-live-p (plist-get stream :proc)))
+  (when (and stream (process-live-p (plist-get stream :proc)))
     (delete-process (plist-get stream :proc))))
 
 (provide 'lichess-http)

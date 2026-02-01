@@ -22,18 +22,19 @@
 
 (defvar lichess-fen--buf "*Lichess FEN Preview*")
 
-;;; FEN -> position
-(defun lichess-pos-create (&rest args)
+(defun lichess-fen-pos-create (&rest args)
   "Create a `lichess-pos` plist with defaults, overridden by ARGS."
-  (let ((defaults (list
-                   :board (make-vector 8 (make-vector 8 ?.)) ;; Vector: 8x8 vector (default filled with ?.)
-                   :stm 'w                                   ;; Symbol: Side to move ('w or 'b, default 'w)
-                   :castle "-"                               ;; String: Castling rights (default "-")
-                   :ep nil                                   ;; Cons: En passant square (default nil)
-                   :halfmove 0                               ;; Integer: Halfmove clock (default 0)
-                   :fullmove 1                               ;; Integer: Fullmove number (default 1)
-                   :eval nil                                 ;; String: Cached evaluation
-                   :info nil)))                              ;; String: Info/footer string
+  (let
+      ((defaults
+        (list
+         :board (make-vector 8 (make-vector 8 ?.)) ;; Vector: 8x8 vector (default filled with ?.)
+         :stm 'w ;; Symbol: Side to move ('w or 'b, default 'w)
+         :castle "-" ;; String: Castling rights (default "-")
+         :ep nil ;; Cons: En passant square (default nil)
+         :halfmove 0 ;; Integer: Halfmove clock (default 0)
+         :fullmove 1 ;; Integer: Fullmove number (default 1)
+         :eval nil ;; String: Cached evaluation
+         :info nil))) ;; String: Info/footer string
     (while args
       (let ((key (pop args))
             (val (pop args)))
@@ -58,7 +59,7 @@ See `lichess-core.el` for the plist structure definition."
        (rows (split-string placement "/" t))
        (board (lichess-fen--rows->board rows))
        (ep (lichess-fen--parse-ep ep-s)))
-    (lichess-pos-create
+    (lichess-fen-pos-create
      :board board
      :stm
      (if (string= active "b")
@@ -236,14 +237,17 @@ MOVES-STR is a space-separated string of UCI moves like \"e2e4 e7e5\"."
         (aset (aref board f-row) f-col ?.)
 
         ;; 5. Update side to move
-        (plist-put pos :stm
-              (if is-white
-                  'b
-                'w))
+        (plist-put
+         pos
+         :stm
+         (if is-white
+             'b
+           'w))
 
         (unless is-white
-          (plist-put pos :fullmove
-                (1+ (plist-get pos :fullmove))))))))
+          (plist-put
+           pos
+           :fullmove (1+ (plist-get pos :fullmove))))))))
 
 (defun lichess-fen-pos->fen (pos)
   "Convert POS struct back into a FEN string."

@@ -207,7 +207,7 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
 
 (ert-deftest lichess-board-dispatch-test ()
   "Test that `lichess-board-draw` dispatches correctly."
-  (let ((pos (lichess-pos-create)))
+  (let ((pos (lichess-fen-pos-create)))
     ;; Case 1: Style "svg", GUI available -> calls GUI
     (cl-letf (((symbol-function 'lichess-board-gui-available-p) (lambda () t))
               ((symbol-function 'lichess-board-gui-draw) (lambda (_ _ _ &optional _) "GUI"))
