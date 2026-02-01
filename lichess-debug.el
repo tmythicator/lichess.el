@@ -19,6 +19,8 @@
 (require 'lichess-tv)
 (require 'lichess-util)
 
+(declare-function ielm-change-working-buffer "ielm" (buf))
+
 (defvar lichess-debug-diagnose-buf "*Lichess Diagnose*")
 (defvar lichess-debug-tv-buf "*(Debug) Lichess TV*")
 (defvar lichess-debug-game-id "t7HAF0vX"
@@ -211,6 +213,31 @@ ARGS are passed to `format`."
                     :pp (cdr res2)
                     :hr
                     :nl))))))))))))
+
+
+;;;###autoload
+(defun lichess-debug-repl ()
+  "Start an IELM REPL context switched to a Lichess game buffer."
+  (interactive)
+  (require 'ielm)
+  (let* ((buffers
+          (cl-remove-if-not
+           (lambda (b)
+             (with-current-buffer b
+               (derived-mode-p 'lichess-game-buffer-mode)))
+           (buffer-list)))
+         (names (mapcar #'buffer-name buffers))
+         (selected-name
+          (if names
+              (completing-read "Select Game Buffer: " names nil t)
+            (user-error "No Lichess game buffers found")))
+         (selected-buf (get-buffer selected-name)))
+    (ielm)
+    (with-current-buffer "*ielm*"
+      (ielm-change-working-buffer selected-buf)
+      (goto-char (point-max))
+      (insert (format ";; Switched to %s\n" selected-name))
+      (insert ";; Access `lichess-game--state` here.\n"))))
 
 (provide 'lichess-debug)
 ;;; lichess-debug.el ends here
