@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8] - 2026-02-03
+
+### Added
+
+- **Challenge Management**: New UI for listing, accepting, and canceling challenges (`M-x lichess-challenge-list`).
+- **Friend Challenges**: Improved flow for challenging friends, including offline friends and manual username entry.
+- **Accessibility**: Added game event announcer for screen readers (`lichess-announce`).
+- **Game Variants**: Ability to select game variants (Standard, Chess960, etc.) when sending a challenge.
+- **Auto-Flip**: Board automatically flips to the player's perspective when a game starts (works for both Human and AI opponents).
+- **Keybindings**: Added `a` (accept) and `g` (refresh) to the challenge list.
+
+### Changed
+
+- **Refactor**: Centralized game variant definitions in `lichess-core.el`.
+- **Refactor**: Updated `lichess-debug` to reuse shared variant definitions.
+- **Versioning**: Bumped project version to 0.8.
+
 ## [0.7] - 2026-01-28
 
 ### Added

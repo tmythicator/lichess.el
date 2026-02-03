@@ -42,6 +42,8 @@ Lichess.el is designed to work seamlessly in both *GUI* and *terminal* (=emacs -
   - [X] Switch board perspective with =v= (auto, white, black).
 - Playing
   - [X] Challenge Lichess AI (=M-x lichess-ai-challenge=)
+  - [X] Challenge Friends (=M-x lichess-challenge-user=)
+  - [X] Manage Challenges (=M-x lichess-challenge-list=) - List, Cancel, Accept.
   - [X] Make moves with =m= (UCI format)
   - [X] Resign with =R=
   - [X] Propose/Accept draw with =D=
