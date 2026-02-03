@@ -72,6 +72,64 @@ TEXT-MODE: If non-nil, parse response as `raw' text."
          'raw
        'json))))
 
+(defun lichess-api-challenge-user
+    (username rated color limit increment variant callback)
+  "Challenge USERNAME.
+RATED: Boolean.
+COLOR: `white', `black', or `random'.
+LIMIT: Clock limit in seconds.
+INCREMENT: Clock increment in seconds.
+VARIANT: e.g., \"standard\".
+CALLBACK: (STATUS . DATA)."
+  (let* ((params
+          `(("rated" ,(if rated
+                  "true"
+                "false"))
+            ("color" ,(symbol-name color))
+            ("clock.limit" ,(number-to-string limit))
+            ("clock.increment" ,(number-to-string increment))
+            ("variant" ,variant))))
+    (lichess-http-request
+     (format "/api/challenge/%s" username)
+     callback
+     :method "POST"
+     :data (url-build-query-string params)
+     :headers
+     '(("Content-Type" . "application/x-www-form-urlencoded"))
+     :parse 'json)))
+
+(defun lichess-api-get-challenges (callback)
+  "Fetch current challenges (incoming and outgoing).
+CALLBACK: (STATUS . DATA)."
+  (lichess-http-json "/api/challenge" callback))
+
+(defun lichess-api-cancel-challenge (id callback)
+  "Cancel challenge with ID.
+CALLBACK: (STATUS . DATA)."
+  (lichess-http-request
+   (format "/api/challenge/%s/cancel" id)
+   callback
+   :method "POST"
+   :parse 'json))
+
+(defun lichess-api-accept-challenge (id callback)
+  "Accept challenge with ID.
+CALLBACK: (STATUS . DATA)."
+  (lichess-http-request
+   (format "/api/challenge/%s/accept" id)
+   callback
+   :method "POST"
+   :parse 'json))
+
+(defun lichess-api-get-following (callback)
+  "Fetch the list of users followed by current user.
+CALLBACK: (STATUS . DATA)."
+  (lichess-http-request
+   "/api/rel/following"
+   callback
+   :accept "application/x-ndjson"
+   :parse 'raw))
+
 ;;; Cloud Eval
 (defun lichess-api-cloud-eval (fen callback)
   "Fetch cloud evaluation for FEN.
@@ -113,6 +171,10 @@ CALLBACK: (STATUS . DATA)."
 (defun lichess-api-stream-game-board-url (game-id)
   "Return NDJSON stream URL for playing GAME-ID (Board API)."
   (format "/api/board/game/stream/%s" game-id))
+
+(defun lichess-api-stream-event-url ()
+  "Return NDJSON stream URL for incoming events."
+  "/api/stream/event")
 
 (provide 'lichess-api)
 ;;; lichess-api.el ends here

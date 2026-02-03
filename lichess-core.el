@@ -18,6 +18,20 @@
 (require 'url)
 (require 'cl-lib)
 (require 'lichess-http)
+(require 'lichess-http)
+(require 'lichess-util)
+
+(defconst lichess-core-variants
+  '("standard"
+    "chess960"
+    "crazyhouse"
+    "antichess"
+    "atomic"
+    "horde"
+    "kingOfTheHill"
+    "racingKings"
+    "threeCheck")
+  "List of supported Lichess game variants.")
 
 (defvar lichess-core-mode-map
   (let ((m (make-sparse-keymap)))

@@ -43,6 +43,8 @@
 (require 'lichess-tv)
 (require 'lichess-game)
 (require 'lichess-ai)
+(require 'lichess-challenge)
+(require 'lichess-challenge-list)
 (require 'lichess-fen)
 (require 'lichess-board)
 (require 'lichess-broadcast-list)
@@ -66,11 +68,16 @@
           '(("Lichess TV: Show channels" . lichess-tv)
             ("Lichess Broadcasts" . lichess-broadcast-list)
             ("Lichess: Watch game" . lichess-game-watch)
+            ("Lichess: Challenge a Friend" . lichess-challenge-user)
+            ("Lichess: List Challenges" . lichess-challenge-list)
             ("Lichess: Play against AI" . lichess-ai-challenge)
             ("Settings: Set Board Style" . lichess-set-style)))
          (debug-choices
           (if (locate-library "lichess-debug")
               '(("(Debug) Diagnose account" . lichess-debug-diagnose)
+                ("(Debug) Diagnose following"
+                 .
+                 lichess-debug-following)
                 ("(Debug) NDJSON Stream" . lichess-debug-game-stream)
                 ("(Debug) TV: JSON channels" . lichess-debug-tv)
                 ("(Debug) Render FEN position" . lichess-fen-show))

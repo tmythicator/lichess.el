@@ -75,6 +75,28 @@ ARGS are passed to `format`."
                                  (car res2))))))))))
 
 ;;;###autoload
+(defun lichess-debug-following ()
+  "Check /api/rel/following and show raw output."
+  (interactive)
+  (lichess-debug--log "Lichess following diagnostics\n")
+  (if (not (and (boundp 'lichess-token) (stringp lichess-token)))
+      (lichess-debug--log "Set lichess-token first.")
+    (lichess-debug--log "Fetching /api/rel/following …")
+    (lichess-api-get-following
+     (lambda (res)
+       (let ((status (car res))
+             (data (cdr res)))
+         (lichess-debug--log "HTTP %d response received" status)
+         (if (= status 200)
+             (progn
+               (lichess-debug--log "Data length: %d chars"
+                                   (length data))
+               (lichess-debug--log "--- RAW DATA START ---")
+               (lichess-debug--log "%s" data)
+               (lichess-debug--log "--- RAW DATA END ---"))
+           (lichess-debug--log "Error response: %s" data)))))))
+
+;;;###autoload
 (defun lichess-debug-game-stream (id)
   "Open NDJSON stream for game ID at /api/stream/game/{id} and pretty-print events."
   (interactive (list
@@ -119,7 +141,7 @@ ARGS are passed to `format`."
 (defun lichess-debug-tv (&optional channel)
   "Dump raw JSON for /api/tv/channels and (optionally) /api/game/{id} of CHANNEL."
   (interactive (list
-                (let* ((chs
+                (let* ((extra-channels
                         '("best"
                           "blitz"
                           "bullet"
@@ -127,17 +149,13 @@ ARGS are passed to `format`."
                           "classical"
                           "bot"
                           "computer"
-                          "racingKings"
-                          "crazyhouse"
-                          "threeCheck"
-                          "kingOfTheHill"
-                          "atomic"
-                          "horde"
-                          "chess960"
                           "ultraBullet"))
+                       (all-channels
+                        (append extra-channels lichess-core-variants))
                        (ans
-                        (completing-read "Channel (empty = all): " chs
-                                         nil nil "")))
+                        (completing-read
+                         "Channel (empty = all): " all-channels
+                         nil nil "")))
                   (if (string-empty-p ans)
                       nil
                     ans))))

@@ -410,47 +410,55 @@ BUF is the target buffer, OBJ is the parsed JSON event."
 
      ;; 1. Handle game setup
      (when (string= type "gameFull")
-       (let* ((ifen
-               (or (lichess-util--aget obj 'initialFen) "startpos"))
-              (ipos (lichess-fen-parse ifen))
+       (let*
+           ((ifen
+             (or (lichess-util--aget obj 'initialFen) "startpos"))
+            (ipos (lichess-fen-parse ifen))
 
-              (variant
-               (lichess-util--aget
-                (lichess-util--aget obj 'variant) 'key))
+            (variant
+             (lichess-util--aget
+              (lichess-util--aget obj 'variant) 'key))
 
-              (w-id (lichess-util--aget white 'id))
-              (b-id (lichess-util--aget black 'id))
-              ;; Determine my color by matching username/ID
-              (curr-user
-               (and (boundp 'lichess-username) lichess-username))
+            (w-id (lichess-util--aget white 'id))
+            (b-id (lichess-util--aget black 'id))
+            ;; Determine my color by matching username/ID
+            (curr-user
+             (and (boundp 'lichess-username) lichess-username))
+            (am-white
+             (or (and curr-user
+                      (lichess-util--aget white 'name)
+                      (string-match-p
+                       curr-user
+                       (or (lichess-util--aget white 'name) "")))
+                 (and w-id curr-user (string= w-id curr-user))))
+            (am-black
+             (or (and curr-user
+                      (lichess-util--aget black 'name)
+                      (string-match-p
+                       curr-user
+                       (or (lichess-util--aget black 'name) "")))
+                 (and b-id curr-user (string= b-id curr-user))))
+            (my-col
+             (cond
               (am-white
-               (or (and curr-user
-                        (lichess-util--aget white 'name)
-                        (string-match-p
-                         curr-user
-                         (or (lichess-util--aget white 'name) "")))
-                   (and w-id curr-user (string= w-id curr-user))))
+               'white)
               (am-black
-               (or (and curr-user
-                        (lichess-util--aget black 'name)
-                        (string-match-p
-                         curr-user
-                         (or (lichess-util--aget black 'name) "")))
-                   (and b-id curr-user (string= b-id curr-user))))
-              (my-col
-               (cond
-                (am-white
-                 'white)
-                (am-black
-                 'black)
-                (t
-                 nil))))
+               'black)
+              ;; Fallback for AI games: if one side is AI, we are the other
+              ((lichess-util--aget white 'aiLevel)
+               'black)
+              ((lichess-util--aget black 'aiLevel)
+               'white)
+              (t
+               nil))))
 
          (plist-put state :initial-pos ipos)
          (plist-put state :variant variant)
          (plist-put state :white white)
          (plist-put state :black black)
          (plist-put state :my-color my-col)
+         (when my-col
+           (plist-put state :perspective my-col))
          (plist-put state :id (lichess-util--aget obj 'id))
          (lichess-game--insert-preamble buf white black
                                         variant
