@@ -102,5 +102,43 @@
         (lichess-http-ndjson-close stream)
         (should (eq deleted-proc mock-proc))))))
 
+(ert-deftest lichess-http-stream-post-test ()
+  "Test that `lichess-http-ndjson-open` supports POST, data, and headers."
+  (let* ((mock-proc "mock-process-object")
+         (network-stream-called nil)
+         (sent-string nil)
+         (deleted-proc nil))
+    (cl-letf (((symbol-function 'open-network-stream)
+               (lambda (&rest _args)
+                 (setq network-stream-called t)
+                 mock-proc))
+              ((symbol-function 'set-process-query-on-exit-flag) #'ignore)
+              ((symbol-function 'set-process-filter) #'ignore)
+              ((symbol-function 'set-process-sentinel) #'ignore)
+              ((symbol-function 'process-send-string)
+               (lambda (_proc str)
+                 (setq sent-string str)))
+              ((symbol-function 'process-live-p) (lambda (proc) (eq proc mock-proc)))
+              ((symbol-function 'delete-process) (lambda (proc) (setq deleted-proc proc))))
+
+      (let ((stream (lichess-http-ndjson-open
+                     "/api/board/seek"
+                     :method "POST"
+                     :data "time=10&increment=0"
+                     :headers '(("Content-Type" . "application/x-www-form-urlencoded")))))
+        ;; Check it's a valid struct
+        (should (lichess-http-stream-p stream))
+        (should (eq (lichess-http-stream-proc stream) mock-proc))
+        (should network-stream-called)
+        
+        ;; Check sent HTTP request headers and body
+        (should (string-match-p "POST /api/board/seek HTTP/1.1" sent-string))
+        (should (string-match-p "Content-Type: application/x-www-form-urlencoded" sent-string))
+        (should (string-match-p "Content-Length: 19" sent-string))
+        (should (string-match-p "time=10&increment=0" sent-string))
+
+        (lichess-http-ndjson-close stream)
+        (should (eq deleted-proc mock-proc))))))
+
 (provide 'lichess-http-test)
 ;;; lichess-http-test.el ends here

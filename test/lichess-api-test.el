@@ -48,5 +48,22 @@
       (should (= (length calls) 1))
       (funcall (cadar calls) '(400 . "error-msg")))))
 
+(ert-deftest lichess-api-seek-correspondence-test ()
+  "Test that `lichess-api-board-seek-correspondence` correctly dispatches a POST request."
+  (let* ((calls '())
+         (mock-request (lambda (endpoint callback &rest plist)
+                         (setq calls (cons (list endpoint callback plist) calls)))))
+    (cl-letf (((symbol-function 'lichess-http-request) mock-request))
+      (lichess-api-board-seek-correspondence 3 t 'standard 'white "1500-1800" #'ignore)
+      (should (= (length calls) 1))
+      (should (string= (caar calls) "/api/board/seek"))
+      (let ((plist (caddar calls)))
+        (should (string= (plist-get plist :method) "POST"))
+        (should (string-match-p "days=3" (plist-get plist :data)))
+        (should (string-match-p "rated=true" (plist-get plist :data)))
+        (should (string-match-p "variant=standard" (plist-get plist :data)))
+        (should (string-match-p "color=white" (plist-get plist :data)))
+        (should (string-match-p "ratingRange=1500-1800" (plist-get plist :data)))))))
+
 (provide 'lichess-api-test)
 ;;; lichess-api-test.el ends here

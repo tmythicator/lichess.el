@@ -173,14 +173,20 @@ Authorization is added automatically unless ANONYMOUS is non-nil."
   &key buffer-name
   on-event ;; (lambda (obj))
   on-open ;; (lambda (proc buf))
-  on-close) ;; (lambda (proc msg))
+  on-close ;; (lambda (proc msg))
+  method
+  data
+  headers)
  "Open an NDJSON stream to URL-OR-ENDPOINT and return a \`lichess-http-stream'.
 
 Arguments:
   BUFFER-NAME  Name for the process buffer (created if missing).
   ON-EVENT     Called with one parsed JSON object per line.
   ON-OPEN      Called once when the socket is connected.
-  ON-CLOSE     Called when the process terminates; receives (PROC MSG)."
+  ON-CLOSE     Called when the process terminates; receives (PROC MSG).
+  METHOD       HTTP method string (default \"GET\").
+  DATA         Request body string (UTF-8) to send.
+  HEADERS      Alist of extra headers to add."
  (let* ((buf (get-buffer-create (or buffer-name "*Lichess NDJSON*")))
         (stream
          (make-lichess-http-stream
@@ -259,16 +265,32 @@ Arguments:
                   (or (url-filename u) "/")
                   (let ((q (url-target u)))
                     (or q ""))))
-             url-or-endpoint)))
+             url-or-endpoint))
+          (m (or method "GET"))
+          (h-alist headers)
+          (extra-headers-str
+           (if h-alist
+               (mapconcat (lambda (hdr)
+                            (format "%s: %s\r\n" (car hdr) (cdr hdr)))
+                          h-alist
+                          "")
+             ""))
+          (encoded-data (and data (encode-coding-string data 'utf-8))))
      (process-send-string
       proc
       (concat
-       (format "GET %s HTTP/1.1\r\n" path)
+       (format "%s %s HTTP/1.1\r\n" m path)
        "Host: lichess.org\r\n"
        "User-Agent: Emacs\r\n"
        "Accept: application/x-ndjson\r\n"
        (lichess-http--auth-header-line)
-       "Connection: keep-alive\r\n\r\n")))
+       extra-headers-str
+       "Connection: keep-alive\r\n"
+       (if encoded-data
+           (format "Content-Length: %d\r\n\r\n%s"
+                   (length encoded-data)
+                   encoded-data)
+         "\r\n"))))
    (when (functionp on-open)
      (funcall on-open proc buf))
    stream))
@@ -360,18 +382,24 @@ PARSE-TYPE controls response parsing: `json' (default) or `raw'."
 
 (cl-defun
  lichess-http-stream-open
- (endpoint &key buffer-name on-event on-open on-close)
+ (endpoint &key buffer-name on-event on-open on-close method data headers)
  "Open NDJSON stream for ENDPOINT.
 Use BUFFER-NAME for the network process.
 ON-EVENT is a callback taking parsed JSON.
 ON-OPEN is called when socket is connected.
-ON-CLOSE is called when closed."
+ON-CLOSE is called when closed.
+METHOD is HTTP method string.
+DATA is body string.
+HEADERS is alist of headers."
  (lichess-http-ndjson-open
   endpoint
   :buffer-name buffer-name
   :on-event on-event
   :on-open on-open
-  :on-close on-close))
+  :on-close on-close
+  :method method
+  :data data
+  :headers headers))
 
 (defun lichess-http-stream-close (stream)
   "Close STREAM returned by `lichess-http-stream-open'."

@@ -157,6 +157,13 @@ CALLBACK: `lichess-http-result`."
   "Return NDJSON stream URL for playing GAME-ID (Board API)."
   (format "/api/board/game/stream/%s" game-id))
 
+(lichess-http-defendpoint
+ lichess-api-board-seek-correspondence
+ "/api/board/seek"
+ "Create a correspondence seek. CALLBACK receives `lichess-http-result`."
+ :method POST
+ :post-params (days rated variant color ratingRange))
+
 (defun lichess-api-stream-event-url ()
   "Return NDJSON stream URL for incoming events."
   "/api/stream/event")
