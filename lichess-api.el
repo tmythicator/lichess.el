@@ -149,13 +149,28 @@ CALLBACK: `lichess-http-result`."
  :method POST
  :path-params (game-id answer))
 
-(defun lichess-api-stream-game-url (game-id)
-  "Return NDJSON stream URL for spectator GAME-ID."
-  (format "/api/stream/game/%s" game-id))
+(lichess-http-defstream
+ lichess-api-stream-game
+ "/api/stream/game/:game-id"
+ "Open spectator stream for GAME-ID."
+ :path-params (game-id))
 
-(defun lichess-api-stream-game-board-url (game-id)
-  "Return NDJSON stream URL for playing GAME-ID (Board API)."
-  (format "/api/board/game/stream/%s" game-id))
+(lichess-http-defstream
+ lichess-api-stream-game-board
+ "/api/board/game/stream/:game-id"
+ "Open playing stream for GAME-ID."
+ :path-params (game-id))
+
+(lichess-http-defstream
+ lichess-api-stream-event "/api/stream/event" "Open event stream.")
+
+(lichess-http-defstream
+ lichess-api-board-seek-stream
+ "/api/board/seek"
+ "Open a real-time seek stream."
+ :method POST
+ :post-params
+ (time increment rated variant color ratingRange))
 
 (lichess-http-defendpoint
  lichess-api-board-seek-correspondence
@@ -163,10 +178,6 @@ CALLBACK: `lichess-http-result`."
  "Create a correspondence seek. CALLBACK receives `lichess-http-result`."
  :method POST
  :post-params (days rated variant color ratingRange))
-
-(defun lichess-api-stream-event-url ()
-  "Return NDJSON stream URL for incoming events."
-  "/api/stream/event")
 
 (provide 'lichess-api)
 ;;; lichess-api.el ends here

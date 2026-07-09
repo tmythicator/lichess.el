@@ -519,5 +519,121 @@ KEYS is a plist of options:
                     callback))
               `(lichess-http--call-get resolved-path callback))))))))
 
+(defmacro lichess-http-defstream (name path docstring &rest keys)
+  "Define an NDJSON stream endpoint function NAME.
+PATH is the endpoint path, possibly containing `:param` placeholders.
+DOCSTRING is the function documentation.
+KEYS is a plist of options:
+  :method       HTTP method symbol (GET or POST, default GET)
+  :path-params  List of variables to replace in PATH.
+  :query-params List of variables to send as query arguments.
+  :post-params  List of variables to send as POST form-urlencoded fields."
+  (declare (indent 2) (doc-string 3))
+  (let* ((method (or (plist-get keys :method) 'GET))
+         (path-params (plist-get keys :path-params))
+         (query-params (plist-get keys :query-params))
+         (post-params (plist-get keys :post-params))
+         (other-args
+          (append
+           path-params
+           (when (or query-params post-params)
+             (append query-params post-params))))
+         (func-args (append other-args (list '&rest 'stream-keys))))
+    `(defun ,name ,func-args
+       ,docstring
+       (let ((resolved-path ,path))
+         ,@
+         (mapcar
+          (lambda (param)
+            `(setq resolved-path
+                   (replace-regexp-in-string
+                    ,(concat ":" (symbol-name param))
+                    (cond
+                     ((eq ,param t)
+                      "true")
+                     ((eq ,param nil)
+                      "false")
+                     ((symbolp ,param)
+                      (symbol-name ,param))
+                     ((numberp ,param)
+                      (number-to-string ,param))
+                     (t
+                      ,param))
+                    resolved-path)))
+          path-params)
+         (let* (,@
+                (when
+                 post-params
+                 `((params
+                    (list
+                     ,@
+                     (mapcar
+                      (lambda (param)
+                        `(list
+                          ,(symbol-name param)
+                          (cond
+                           ((eq ,param t)
+                            "true")
+                           ((eq ,param nil)
+                            nil)
+                           ((symbolp ,param)
+                            (symbol-name ,param))
+                           ((numberp ,param)
+                            (number-to-string ,param))
+                           (t
+                            ,param))))
+                      post-params)))
+                   (filtered
+                    (cl-remove-if-not (lambda (x) (cadr x)) params))
+                   (data-payload
+                    (and filtered
+                         (url-build-query-string filtered)))))
+                ,@
+                (when
+                 query-params
+                 `((query
+                    (list
+                     ,@
+                     (mapcar
+                      (lambda (param)
+                        `(list
+                          ,(symbol-name param)
+                          (cond
+                           ((eq ,param t)
+                            "true")
+                           ((eq ,param nil)
+                            nil)
+                           ((symbolp ,param)
+                            (symbol-name ,param))
+                           ((numberp ,param)
+                            (number-to-string ,param))
+                           (t
+                            ,param))))
+                      query-params)))
+                   (filtered
+                    (cl-remove-if-not (lambda (x) (cadr x)) query))
+                   (query-str
+                    (and filtered
+                         (url-build-query-string filtered))))))
+           (apply #'lichess-http-stream-open
+                  ,(if query-params
+                       `(if query-str
+                            (concat resolved-path "?" query-str)
+                          resolved-path)
+                     'resolved-path)
+                  :method ,(symbol-name method)
+                  :data
+                  ,(if post-params
+                       'data-payload
+                     'nil)
+                  :headers
+                  ,(if post-params
+                       `(and data-payload
+                             '(("Content-Type"
+                                .
+                                "application/x-www-form-urlencoded")))
+                     'nil)
+                  stream-keys))))))
+
 (provide 'lichess-http)
 ;;; lichess-http.el ends here
