@@ -123,8 +123,7 @@ RATED, COLOR, LIMIT, INCREMENT, and VARIANT specify the game parameters."
   "Start listening to the event stream for game start."
   (unless lichess-challenge--event-stream
     (setq lichess-challenge--event-stream
-          (lichess-http-stream-open
-           (lichess-api-stream-event-url)
+          (lichess-api-stream-event
            :on-event #'lichess-challenge--handle-event
            :on-close
            (lambda (_p _m)

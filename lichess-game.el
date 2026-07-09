@@ -499,8 +499,8 @@ BUF, MSG-PREFIX, and MSG describe the event."
     (lichess-game-stream-stop)
 
     (setq lichess-game--stream
-          (lichess-http-ndjson-open
-           (lichess-api-stream-game-url id)
+          (lichess-api-stream-game
+           id
            :buffer-name (buffer-name buf)
            :on-open
            (apply-partially #'lichess-game--stream-on-open
@@ -521,8 +521,8 @@ This uses /api/board/game/stream/{ID} which has no delay."
          (buf (get-buffer-create buf-name)))
     (lichess-game-stream-stop)
     (setq lichess-game--stream
-          (lichess-http-ndjson-open
-           (lichess-api-stream-game-board-url id)
+          (lichess-api-stream-game-board
+           id
            :buffer-name (buffer-name buf)
            :on-open
            (apply-partially #'lichess-game--stream-on-open
