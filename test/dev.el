@@ -1,4 +1,4 @@
-;;; .dev.el --- Developer scratchpad for Lichess.el  -*- lexical-binding: t; -*-
+;;; dev.el --- Developer scratchpad for Lichess.el  -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 ;; This file is meant for "Rich Comment" style development.
@@ -14,10 +14,14 @@
   "Ignore BODY.  Used for rich comment blocks."
   nil)
 
-(add-to-list 'load-path default-directory)
-(require 'lichess)
-(require 'lichess-debug)
-(load-file ".secrets.el") ;; Load token
+(let ((dir (file-name-directory (or load-file-name buffer-file-name default-directory))))
+  (add-to-list 'load-path (expand-file-name ".." dir))
+  (require 'lichess)
+  (require 'lichess-debug)
+  (let ((secrets-file (expand-file-name "../.secrets.el" dir)))
+    (when (file-exists-p secrets-file)
+      (load-file secrets-file))))
+
 (message "Lichess.el development environment loaded!")
 
 ;; 2. Common Entry Points
@@ -97,4 +101,4 @@
  (lichess-fen-pos-create :stm 'b :info "Black to move")
  )
 
-;;; .dev.el ends here
+;;; dev.el ends here
