@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9] - 2026-07-09
+
+### Added
+
+- **Auth Source**: Native support for Emacs's built-in `auth-source` library, allowing secure and automatic token loading from `~/.authinfo` or `~/.authinfo.gpg`.
+
+### Changed
+
+- **Refactor**: Centralized and streamlined Lichess API requests in `lichess-api.el` using a unified request dispatcher and query serialization.
+- **Refactor**: Consolidated TUI and GUI style rendering logic in `lichess-board.el` around a single `lichess-board--active-style` helper.
+- **Versioning**: Bumped project version to 0.9.
+
 ## [0.8] - 2026-02-03
 
 ### Added
