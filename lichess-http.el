@@ -22,6 +22,8 @@
 (require 'json)
 (require 'subr-x)
 
+(declare-function lichess-token "lichess")
+
 ;;;; Header helpers
 (defun lichess-http--auth-header-line ()
   "Return raw Authorization header line for manual sockets, or \"\"."

@@ -66,8 +66,11 @@
 If `lichess-token' variable is non-nil, use that.
 Otherwise, try to retrieve it using `auth-source'."
   (or lichess-token
-      (let ((match (car (auth-source-search :host "lichess.org"
-                                            :require '(:secret)))))
+      (let ((match
+             (car
+              (auth-source-search
+               :host "lichess.org"
+               :require '(:secret)))))
         (when match
           (let ((secret (plist-get match :secret)))
             (if (functionp secret)

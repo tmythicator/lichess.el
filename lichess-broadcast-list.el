@@ -116,7 +116,7 @@
   (if-let* ((button (or btn (button-at (point))))
             (url (button-get button 'lichess-url))
             (round-id (button-get button 'lichess-round-id)))
-    (lichess-broadcast-view-watch-round round-id url)
+      (lichess-broadcast-view-watch-round round-id url)
     (message "No broadcast found at point.")))
 
 (provide 'lichess-broadcast-list)

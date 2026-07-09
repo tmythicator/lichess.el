@@ -48,7 +48,10 @@ EVAL and INFO are read from POS."
 (defun lichess-board-draw-heading (pos &optional perspective)
   "Render heading string for POS using global style and PERSPECTIVE."
   (let* ((style (lichess-board--active-style))
-         (display-style (if (string= style "svg") "SVG" style)))
+         (display-style
+          (if (string= style "svg")
+              "SVG"
+            style)))
     (lichess-board-tui-draw-heading pos display-style perspective)))
 
 (defun lichess-board-insert-board

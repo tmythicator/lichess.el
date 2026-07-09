@@ -20,6 +20,7 @@
 (require 'lichess-util)
 
 (declare-function ielm-change-working-buffer "ielm" (buf))
+(declare-function lichess-token "lichess")
 
 (defvar lichess-debug-diagnose-buf "*Lichess Diagnose*")
 (defvar lichess-debug-tv-buf "*(Debug) Lichess TV*")
@@ -61,13 +62,14 @@ ARGS are passed to `format`."
           "/api/account/playing"
           (lambda (res2)
             (pcase (car res2)
-              (200 (let* ((j (cdr res2))
-                          (games (alist-get 'nowPlaying j))
-                          (n (length games)))
-                     (lichess-debug--log (if (> n 0)
-                                             "%d ongoing game(s)"
-                                           "nowPlaying = []")
-                                         n)))
+              (200
+               (let* ((j (cdr res2))
+                      (games (alist-get 'nowPlaying j))
+                      (n (length games)))
+                 (lichess-debug--log (if (> n 0)
+                                         "%d ongoing game(s)"
+                                       "nowPlaying = []")
+                                     n)))
               (_
                (lichess-debug--log "HTTP %s /account/playing"
                                    (car res2)))))))))))
@@ -87,13 +89,13 @@ ARGS are passed to `format`."
                (data (cdr res)))
            (lichess-debug--log "HTTP %d response received" status)
            (if (= status 200)
-             (progn
-               (lichess-debug--log "Data length: %d chars"
-                                   (length data))
-               (lichess-debug--log "--- RAW DATA START ---")
-               (lichess-debug--log "%s" data)
-               (lichess-debug--log "--- RAW DATA END ---"))
-           (lichess-debug--log "Error response: %s" data))))))))
+               (progn
+                 (lichess-debug--log "Data length: %d chars"
+                                     (length data))
+                 (lichess-debug--log "--- RAW DATA START ---")
+                 (lichess-debug--log "%s" data)
+                 (lichess-debug--log "--- RAW DATA END ---"))
+             (lichess-debug--log "Error response: %s" data))))))))
 
 ;;;###autoload
 (defun lichess-debug-game-stream (id)
