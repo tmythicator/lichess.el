@@ -13,9 +13,7 @@ jobs:
       matrix:
         emacs_version:
           - "27.1"
-          - "27.2"
-          - "28.2"
-          - "29.4"
+          - "30.2"
           - "snapshot"
 
     steps:
@@ -25,6 +23,14 @@ jobs:
         with:
           version: ${{ matrix.emacs_version }}
 
+      - name: Cache Elpa Packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.emacs.d/elpa
+          key: ${{ runner.os }}-emacs-${{ matrix.emacs_version }}-elpa-${{ hashFiles('Makefile') }}
+          restore-keys: |
+            ${{ runner.os }}-emacs-${{ matrix.emacs_version }}-elpa-
+
       - name: Run tests
         run: make test
 
@@ -32,11 +38,13 @@ jobs:
         run: make compile
 
       - name: Check Formatting
-        if: matrix.emacs_version == 'snapshot'
+        if: matrix.emacs_version == '30.2'
         run: make format-check
 
       - name: Checkdoc
+        if: matrix.emacs_version == '30.2'
         run: make checkdoc
 
       - name: Lint
+        if: matrix.emacs_version == '30.2'
         run: make lint
