@@ -174,9 +174,7 @@ Authorization is added automatically unless ANONYMOUS is non-nil."
   on-event ;; (lambda (obj))
   on-open ;; (lambda (proc buf))
   on-close ;; (lambda (proc msg))
-  method
-  data
-  headers)
+  method data headers)
  "Open an NDJSON stream to URL-OR-ENDPOINT and return a \`lichess-http-stream'.
 
 Arguments:
@@ -275,7 +273,8 @@ Arguments:
                           h-alist
                           "")
              ""))
-          (encoded-data (and data (encode-coding-string data 'utf-8))))
+          (encoded-data
+           (and data (encode-coding-string data 'utf-8))))
      (process-send-string
       proc
       (concat
@@ -382,7 +381,8 @@ PARSE-TYPE controls response parsing: `json' (default) or `raw'."
 
 (cl-defun
  lichess-http-stream-open
- (endpoint &key buffer-name on-event on-open on-close method data headers)
+ (endpoint
+  &key buffer-name on-event on-open on-close method data headers)
  "Open NDJSON stream for ENDPOINT.
 Use BUFFER-NAME for the network process.
 ON-EVENT is a callback taking parsed JSON.
