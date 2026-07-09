@@ -73,12 +73,24 @@ Clone and add to your load path:
 (require 'lichess)
 #+end_src
 * Configuration
-** Authenticaton
+** Authentication
 Some commands require a personal API token (e.g., playing games, viewing protected user data).
 
 1. Go to [[https://lichess.org/account/oauth/token]]
 2. Create a token with appropriate scopes.
-3. Configure it in Emacs:
+3. Configure it in Emacs using either of the following methods:
+
+*** Method A: Standard =auth-source= (Recommended)
+Store your token securely using Emacs's built-in =auth-source= library (available out-of-the-box). Add the following line to your =~/.authinfo= or =~/.authinfo.gpg=:
+
+#+begin_src text
+machine lichess.org password YOUR_TOKEN_HERE
+#+end_src
+
+No additional configuration is required in Emacs; the package will automatically resolve the token.
+
+*** Method B: Variable Configuration
+Alternatively, set the variable directly in your configuration file:
 
 #+begin_src elisp
 (setq lichess-token "YOUR_TOKEN_HERE")
@@ -120,7 +132,8 @@ Here is a complete configuration using =use-package=:
 (use-package lichess
   :commands (lichess lichess-tv lichess-game-watch)
   :custom
-  (lichess-token "YOUR_TOKEN")
+  ;; Optional: set token directly (or use ~/.authinfo)
+  ;; (lichess-token "YOUR_TOKEN")
   (lichess-core-chess-font "DejaVu Sans Mono")
   (lichess-board-gui-light-square-color "#f0d9b5")
   (lichess-board-gui-dark-square-color "#b58863")

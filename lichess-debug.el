@@ -43,58 +43,57 @@ ARGS are passed to `format`."
   "Check auth and show /account + /account/playing."
   (interactive)
   (lichess-debug--log "Lichess diagnostics\n")
-  (if (not
-       (and (boundp 'lichess-token)
-            (stringp lichess-token)
-            (> (length lichess-token) 10)))
-      (lichess-debug--log
-       "Set lichess-token for authenticated calls.")
-    (lichess-debug--log "/api/account …")
-    (lichess-http-json
-     "/api/account"
-     (lambda (res)
-       (if (/= (car res) 200)
-           (lichess-debug--log "HTTP %s /account" (car res))
-         (let ((j (cdr res)))
-           (lichess-debug--log "Auth OK as %s"
-                               (alist-get 'username j))))
-       (lichess-debug--log "/api/account/playing …")
-       (lichess-http-json
-        "/api/account/playing"
-        (lambda (res2)
-          (pcase (car res2)
-            (200 (let* ((j (cdr res2))
-                        (games (alist-get 'nowPlaying j))
-                        (n (length games)))
-                   (lichess-debug--log (if (> n 0)
-                                           "%d ongoing game(s)"
-                                         "nowPlaying = []")
-                                       n)))
-            (_
-             (lichess-debug--log "HTTP %s /account/playing"
-                                 (car res2))))))))))
+  (let ((token (lichess-token)))
+    (if (not (and token (stringp token) (> (length token) 10)))
+        (lichess-debug--log
+         "Set lichess-token for authenticated calls.")
+      (lichess-debug--log "/api/account …")
+      (lichess-http-json
+       "/api/account"
+       (lambda (res)
+         (if (/= (car res) 200)
+             (lichess-debug--log "HTTP %s /account" (car res))
+           (let ((j (cdr res)))
+             (lichess-debug--log "Auth OK as %s"
+                                 (alist-get 'username j))))
+         (lichess-debug--log "/api/account/playing …")
+         (lichess-http-json
+          "/api/account/playing"
+          (lambda (res2)
+            (pcase (car res2)
+              (200 (let* ((j (cdr res2))
+                          (games (alist-get 'nowPlaying j))
+                          (n (length games)))
+                     (lichess-debug--log (if (> n 0)
+                                             "%d ongoing game(s)"
+                                           "nowPlaying = []")
+                                         n)))
+              (_
+               (lichess-debug--log "HTTP %s /account/playing"
+                                   (car res2)))))))))))
 
 ;;;###autoload
 (defun lichess-debug-following ()
   "Check /api/rel/following and show raw output."
   (interactive)
   (lichess-debug--log "Lichess following diagnostics\n")
-  (if (not (and (boundp 'lichess-token) (stringp lichess-token)))
-      (lichess-debug--log "Set lichess-token first.")
-    (lichess-debug--log "Fetching /api/rel/following …")
-    (lichess-api-get-following
-     (lambda (res)
-       (let ((status (car res))
-             (data (cdr res)))
-         (lichess-debug--log "HTTP %d response received" status)
-         (if (= status 200)
+  (let ((token (lichess-token)))
+    (if (not (and token (stringp token)))
+        (lichess-debug--log "Set lichess-token first.")
+      (lichess-debug--log "Fetching /api/rel/following …")
+      (lichess-api-get-following
+       (lambda (res)
+         (let ((status (car res))
+               (data (cdr res)))
+           (lichess-debug--log "HTTP %d response received" status)
+           (if (= status 200)
              (progn
                (lichess-debug--log "Data length: %d chars"
                                    (length data))
                (lichess-debug--log "--- RAW DATA START ---")
                (lichess-debug--log "%s" data)
                (lichess-debug--log "--- RAW DATA END ---"))
-           (lichess-debug--log "Error response: %s" data)))))))
+           (lichess-debug--log "Error response: %s" data))))))))
 
 ;;;###autoload
 (defun lichess-debug-game-stream (id)

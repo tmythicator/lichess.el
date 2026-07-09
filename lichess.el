@@ -50,6 +50,7 @@
 (require 'lichess-broadcast-list)
 (require 'lichess-board-tui)
 (require 'lichess-announce)
+(require 'auth-source)
 
 (defgroup lichess nil
   "Lichess client."
@@ -59,6 +60,19 @@
   "Personal Lichess API token."
   :type 'string
   :group 'lichess)
+
+(defun lichess-token ()
+  "Return Lichess Personal Access Token.
+If `lichess-token' variable is non-nil, use that.
+Otherwise, try to retrieve it using `auth-source'."
+  (or lichess-token
+      (let ((match (car (auth-source-search :host "lichess.org"
+                                            :require '(:secret)))))
+        (when match
+          (let ((secret (plist-get match :secret)))
+            (if (functionp secret)
+                (funcall secret)
+              secret))))))
 
 ;;;###autoload
 (defun lichess ()
