@@ -94,22 +94,21 @@ Properties:
 
 (defun lichess-broadcast-view--handle-update (res round-id)
   "Handle round update JSON RES for ROUND-ID."
-  (pcase-let* ((`(,status . ,data) res)
-               (buf
-                (get-buffer
-                 (format "*Lichess Broadcast: %s*" round-id))))
+  (let ((buf
+         (get-buffer (format "*Lichess Broadcast: %s*" round-id))))
     (when (buffer-live-p buf)
       (with-current-buffer buf
         (let ((inhibit-read-only t)
               (pt (point)))
           (erase-buffer)
-          (if (/= status 200)
+          (if (not (lichess-http-result-success res))
               (insert
                (format
                 "Error fetching broadcast %s: %s\n\nEnsure accessible via API."
-                round-id status))
-            (let ((games
-                   (append (lichess-util--aget data 'games) nil)))
+                round-id (car (lichess-http-result-error res))))
+            (let* ((data (lichess-http-result-data res))
+                   (games
+                    (append (lichess-util--aget data 'games) nil)))
               ;; Update state map
               (setq lichess-broadcast-view--state
                     (plist-put

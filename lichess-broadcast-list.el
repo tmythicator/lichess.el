@@ -48,39 +48,38 @@
         (insert "Fetching broadcasts...\n")))
     (pop-to-buffer buf)
     (lichess-api-get-broadcasts
-     #'lichess-broadcast-list--render-list 20)))
+     20 #'lichess-broadcast-list--render-list)))
 
 (defun lichess-broadcast-list--render-list (res)
   "Render the broadcast list from RES."
-  (let ((status (car res))
-        (data (cdr res)))
-    (when-let* ((buf (get-buffer lichess-broadcast-list--buf))
-                (_ (buffer-live-p buf)))
-      (with-current-buffer buf
-        (let ((inhibit-read-only t))
-          (erase-buffer)
-          (if (/= status 200)
-              (insert (format "Error fetching broadcasts: %s" status))
-            (pcase-let ((`(,active ,upcoming)
-                         (list
-                          (lichess-util--aget data 'active)
-                          (lichess-util--aget data 'upcoming))))
+  (when-let* ((buf (get-buffer lichess-broadcast-list--buf))
+              (_ (buffer-live-p buf)))
+    (with-current-buffer buf
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (if (not (lichess-http-result-success res))
+            (insert
+             (format "Error fetching broadcasts: %s"
+                     (car (lichess-http-result-error res))))
+          (let* ((data (lichess-http-result-data res))
+                 (active (lichess-util--aget data 'active))
+                 (upcoming (lichess-util--aget data 'upcoming)))
 
-              (if active
-                  (progn
-                    (insert
-                     (propertize "Active Broadcasts\n" 'face 'bold))
-                    (insert (make-string 50 ?-) "\n")
-                    (seq-do
-                     #'lichess-broadcast-list--insert-item active))
-                (insert "No active broadcasts.\n"))
+            (if active
+                (progn
+                  (insert
+                   (propertize "Active Broadcasts\n" 'face 'bold))
+                  (insert (make-string 50 ?-) "\n")
+                  (seq-do
+                   #'lichess-broadcast-list--insert-item active))
+              (insert "No active broadcasts.\n"))
 
-              (insert "\n")
-              (when upcoming
-                (insert (make-string 50 ?-) "\n")
-                (seq-do
-                 #'lichess-broadcast-list--insert-item upcoming)))
-            (goto-char (point-min))))))))
+            (insert "\n")
+            (when upcoming
+              (insert (make-string 50 ?-) "\n")
+              (seq-do
+               #'lichess-broadcast-list--insert-item upcoming)))
+          (goto-char (point-min)))))))
 
 (defun lichess-broadcast-list--insert-item (item)
   "Insert a broadcast ITEM line."

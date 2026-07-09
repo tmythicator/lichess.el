@@ -36,25 +36,25 @@
   "Fetch following list and call CALLBACK with an alist of (NAME . ID)."
   (lichess-api-get-following
    (lambda (res)
-     (let ((status (car res))
-           (data (cdr res)))
-       (if (= status 200)
-           (let* ((lines (split-string (string-trim data) "\n" t))
-                  (friends
-                   (mapcar
-                    (lambda (line)
-                      (condition-case nil
-                          (let* ((obj (json-read-from-string line))
-                                 (id (lichess-util--aget obj 'id))
-                                 (name
-                                  (lichess-util--aget obj 'name)))
-                            (if (and id name)
-                                (cons name id)
-                              (cons (or name id line) (or id line))))
-                        (error
-                         (cons line line))))
-                    lines)))
-             (funcall callback :ok friends))
+     (if (lichess-http-result-success res)
+         (let* ((data (lichess-http-result-data res))
+                (lines (split-string (string-trim data) "\n" t))
+                (friends
+                 (mapcar
+                  (lambda (line)
+                    (condition-case nil
+                        (let* ((obj (json-read-from-string line))
+                               (id (lichess-util--aget obj 'id))
+                               (name (lichess-util--aget obj 'name)))
+                          (if (and id name)
+                              (cons name id)
+                            (cons (or name id line) (or id line))))
+                      (error
+                       (cons line line))))
+                  lines)))
+           (funcall callback :ok friends))
+       (let* ((err (lichess-http-result-error res))
+              (status (car err)))
          (if (= status 403)
              (funcall callback :missing-scope nil)
            (message "Error fetching friends: %d" status)
@@ -104,15 +104,16 @@ RATED, COLOR, LIMIT, INCREMENT, and VARIANT specify the game parameters."
   (lichess-api-challenge-user
    username rated (intern color) limit increment variant
    (lambda (res)
-     (let ((status (car res))
-           (json (cdr res)))
-       (if (memq status '(200 201))
-           (progn
-             (message
-              "Challenge (%s) sent to %s! Waiting for acceptance..."
-              variant username)
-             (lichess-challenge--listen-for-start)
-             (lichess-challenge-list))
+     (if (lichess-http-result-success res)
+         (progn
+           (message
+            "Challenge (%s) sent to %s! Waiting for acceptance..."
+            variant username)
+           (lichess-challenge--listen-for-start)
+           (lichess-challenge-list))
+       (let* ((err (lichess-http-result-error res))
+              (status (car err))
+              (json (cdr err)))
          (message "Error challenging %s: %d %s"
                   username
                   status
@@ -122,7 +123,7 @@ RATED, COLOR, LIMIT, INCREMENT, and VARIANT specify the game parameters."
   "Start listening to the event stream for game start."
   (unless lichess-challenge--event-stream
     (setq lichess-challenge--event-stream
-          (lichess-http-ndjson-open
+          (lichess-http-stream-open
            (lichess-api-stream-event-url)
            :on-event #'lichess-challenge--handle-event
            :on-close
@@ -140,7 +141,7 @@ RATED, COLOR, LIMIT, INCREMENT, and VARIANT specify the game parameters."
           (message "Game started! ID: %s" id)
           ;; Close event stream if we are just waiting for this one game
           (when lichess-challenge--event-stream
-            (lichess-http-ndjson-close
+            (lichess-http-stream-close
              lichess-challenge--event-stream)
             (setq lichess-challenge--event-stream nil))
           (lichess-game-play id))))
@@ -150,7 +151,7 @@ RATED, COLOR, LIMIT, INCREMENT, and VARIANT specify the game parameters."
              (id (lichess-util--aget ch 'id)))
         (message "Challenge %s canceled." id)
         (when lichess-challenge--event-stream
-          (lichess-http-ndjson-close lichess-challenge--event-stream)
+          (lichess-http-stream-close lichess-challenge--event-stream)
           (setq lichess-challenge--event-stream nil))))
 
      ((string= type "challengeDeclined")
@@ -163,7 +164,7 @@ RATED, COLOR, LIMIT, INCREMENT, and VARIANT specify the game parameters."
                  id
                  (or dest-user "opponent"))
         (when lichess-challenge--event-stream
-          (lichess-http-ndjson-close lichess-challenge--event-stream)
+          (lichess-http-stream-close lichess-challenge--event-stream)
           (setq lichess-challenge--event-stream nil)))))))
 
 (provide 'lichess-challenge)

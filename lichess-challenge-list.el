@@ -56,21 +56,20 @@
   (let ((buf (get-buffer-create "*Lichess Challenges*")))
     (lichess-api-get-challenges
      (lambda (res)
-       (let ((status (car res))
-             (data (cdr res)))
-         (if (= status 200)
-             (let ((in (lichess-util--aget data 'in))
-                   (out (lichess-util--aget data 'out)))
-               ;; Flatten and convert to vector
-               (setq lichess-challenge-list--challenges
-                     (vconcat in out))
-               (lichess-challenge-list--render buf))
-           (with-current-buffer buf
-             (let ((inhibit-read-only t))
-               (erase-buffer)
-               (insert
-                (format "Error fetching challenges: %d"
-                        status))))))))))
+       (if (lichess-http-result-success res)
+           (let* ((data (lichess-http-result-data res))
+                  (in (lichess-util--aget data 'in))
+                  (out (lichess-util--aget data 'out)))
+             ;; Flatten and convert to vector
+             (setq lichess-challenge-list--challenges
+                   (vconcat in out))
+             (lichess-challenge-list--render buf))
+         (with-current-buffer buf
+           (let ((inhibit-read-only t))
+             (erase-buffer)
+             (insert
+              (format "Error fetching challenges: %s"
+                      (car (lichess-http-result-error res)))))))))))
 
 (defun lichess-challenge-list--render (buf)
   "Render `lichess-challenge-list--challenges' into BUF."
@@ -134,12 +133,12 @@
             (lichess-api-cancel-challenge
              id
              (lambda (res)
-               (let ((status (car res)))
-                 (if (= status 200)
-                     (message "Challenge cancelled.")
-                   (message "Error cancelling challenge: %d" status))
-                 (lichess-challenge-list-refresh)))))) ;; Refresh
-      (message "No challenge at point."))))
+               (if (lichess-http-result-success res)
+                   (message "Challenge cancelled.")
+                 (message "Error cancelling challenge: %d"
+                          (car (lichess-http-result-error res))))
+               (lichess-challenge-list-refresh)))))) ;; Refresh
+    (message "No challenge at point.")))
 
 (defun lichess-challenge-list-accept ()
   "Accept the challenge at point."
@@ -153,16 +152,16 @@
             (lichess-api-accept-challenge
              id
              (lambda (res)
-               (let ((status (car res)))
-                 (if (= status 200)
-                     (progn
-                       (message
-                        "Challenge accepted! Starting game %s..."
-                        id)
-                       (lichess-game-play id))
-                   (message "Error accepting challenge: %d" status))
-                 (lichess-challenge-list-refresh)))))) ;; Refresh
-      (message "No challenge at point."))))
+               (if (lichess-http-result-success res)
+                   (progn
+                     (message
+                      "Challenge accepted! Starting game %s..."
+                      id)
+                     (lichess-game-play id))
+                 (message "Error accepting challenge: %d"
+                          (car (lichess-http-result-error res))))
+               (lichess-challenge-list-refresh)))))) ;; Refresh
+    (message "No challenge at point.")))
 
 (provide 'lichess-challenge-list)
 ;;; lichess-challenge-list.el ends here

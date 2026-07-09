@@ -117,15 +117,14 @@ CHAN-NAME is the channel label."
        (lichess-api-get-game
         id
         (lambda (res)
-          (let ((status (car res))
-                (data (cdr res)))
-            (if (= status 200)
-                (let ((vs (lichess-util--game->vs data)))
-                  (lichess-tv--update-line marker
-                                           (format
-                                            "%-12s  %-64s  id:%s"
-                                            chan-name vs id)
-                                           id))
+          (if (lichess-http-result-success res)
+              (let* ((data (lichess-http-result-data res))
+                     (vs (lichess-util--game->vs data)))
+                (lichess-tv--update-line
+                 marker (format "%-12s  %-64s  id:%s" chan-name vs id)
+                 id))
+            (let* ((err (lichess-http-result-error res))
+                   (status (car err)))
               (lichess-tv--update-line marker
                                        (format
                                         "%-12s  id:%s (HTTP %s)"
@@ -148,12 +147,15 @@ CHAN-NAME is the channel label."
 
 (defun lichess-tv--handle-channels (res)
   "Process /api/tv/channels RES."
-  (if (/= (car res) 200)
-      (lichess-core-with-buf
-       (get-buffer lichess-tv--buf)
-       (erase-buffer)
-       (insert (format "HTTP %s from /api/tv/channels\n" (car res))))
-    (mapc #'lichess-tv--insert-channel (cdr res))))
+  (if (not (lichess-http-result-success res))
+      (let* ((err (lichess-http-result-error res))
+             (status (car err)))
+        (lichess-core-with-buf
+         (get-buffer lichess-tv--buf)
+         (erase-buffer)
+         (insert (format "HTTP %s from /api/tv/channels\n" status))))
+    (mapc
+     #'lichess-tv--insert-channel (lichess-http-result-data res))))
 
 (provide 'lichess-tv)
 ;;; lichess-tv.el ends here

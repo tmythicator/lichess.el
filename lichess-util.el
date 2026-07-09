@@ -126,9 +126,9 @@ Passes the result string to CALLBACK."
        (lichess-api-cloud-eval
         fen
         (lambda (res)
-          (if (eq (car res) 200)
+          (if (lichess-http-result-success res)
               (when (functionp callback)
-                (let* ((data (cdr res))
+                (let* ((data (lichess-http-result-data res))
                        (pvs (lichess-util--aget data 'pvs))
                        (best-pv (and pvs (car pvs)))
                        (cp

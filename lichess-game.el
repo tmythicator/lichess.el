@@ -631,10 +631,11 @@ MOVE should be in UCI format (e.g., e2e4)."
     (lichess-api-board-move
      game-id move
      (lambda (res)
-       (let ((status (car res))
-             (json (cdr res)))
-         (if (= status 200)
-             (message "Move %s sent successfully" move)
+       (if (lichess-http-result-success res)
+           (message "Move %s sent successfully" move)
+         (let* ((err (lichess-http-result-error res))
+                (status (car err))
+                (json (cdr err)))
            (message "Error sending move: %d %s"
                     status
                     (or (lichess-util--aget json 'error) ""))))))))
@@ -652,16 +653,16 @@ MOVE should be in UCI format (e.g., e2e4)."
       (lichess-api-board-resign
        game-id
        (lambda (res)
-         (let ((status (car res))
-               (json (cdr res)))
-           (if (= status 200)
-               (progn
-                 (let ((msg "Game resign event sent"))
-                   (message msg)
-                   (lichess-announce-event msg))))
-           (message "Error resigning: %d %s"
-                    status
-                    (or (lichess-util--aget json 'error) ""))))))))
+         (if (lichess-http-result-success res)
+             (let ((msg "Game resign event sent"))
+               (message msg)
+               (lichess-announce-event msg))
+           (let* ((err (lichess-http-result-error res))
+                  (status (car err))
+                  (json (cdr err)))
+             (message "Error resigning: %d %s"
+                      status
+                      (or (lichess-util--aget json 'error) "")))))))))
 
 ;;;###autoload
 (defun lichess-game-draw ()
@@ -676,13 +677,13 @@ MOVE should be in UCI format (e.g., e2e4)."
       (lichess-api-board-draw
        game-id 'yes
        (lambda (res)
-         (let ((status (car res))
-               (json (cdr res)))
-           (if (= status 200)
-               (progn
-                 (let ((msg "Draw request sent"))
-                   (message msg)
-                   (lichess-announce-event msg)))
+         (if (lichess-http-result-success res)
+             (let ((msg "Draw request sent"))
+               (message msg)
+               (lichess-announce-event msg))
+           (let* ((err (lichess-http-result-error res))
+                  (status (car err))
+                  (json (cdr err)))
              (message "Error with draw request: %d %s"
                       status
                       (or (lichess-util--aget json 'error) "")))))))))

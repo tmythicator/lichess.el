@@ -269,5 +269,31 @@ Skips lines with fewer than 2 separators (like the ASCII separator line)."
         (lichess-set-style "svg"))
       (should (string-match "assets are missing: wK.svg" (car warnings))))))
 
+(ert-deftest lichess-token-resolution-test ()
+  "Test that `lichess-token` resolves correctly using the variable and auth-source."
+  (let ((lichess-token nil))
+    ;; 1. If lichess-token is nil and auth-source returns nil, it should be nil
+    (cl-letf (((symbol-function 'auth-source-search) (lambda (&rest _args) nil)))
+      (should-not (lichess-token)))
+
+    ;; 2. If lichess-token variable is set, it should return that variable
+    (let ((lichess-token "custom-token-val"))
+      (cl-letf (((symbol-function 'auth-source-search) (lambda (&rest _args) (error "Should not be called"))))
+        (should (string= (lichess-token) "custom-token-val"))))
+
+    ;; 3. If lichess-token variable is nil, it should look up via auth-source
+    (cl-letf (((symbol-function 'auth-source-search)
+               (lambda (&rest args)
+                 (should (equal (plist-get args :host) "lichess.org"))
+                 (should (equal (plist-get args :require) '(:secret)))
+                 '((:host "lichess.org" :secret "auth-source-token-val")))))
+      (should (string= (lichess-token) "auth-source-token-val")))
+
+    ;; 4. If auth-source returns a function for secret, it should execute it
+    (cl-letf (((symbol-function 'auth-source-search)
+               (lambda (&rest _args)
+                 '((:host "lichess.org" :secret (lambda () "auth-source-func-token-val"))))))
+      (should (string= (lichess-token) "auth-source-func-token-val")))))
+
 (provide 'lichess-test)
 ;;; lichess-test.el ends here

@@ -59,15 +59,17 @@ LIMIT and INCREMENT define the time control."
   (lichess-api-challenge-ai
    level (intern color) limit increment nil
    (lambda (res)
-     (let ((status (car res))
-           (json (cdr res)))
-       (if (memq status '(200 201))
-           (let ((id (lichess-util--aget json 'id)))
-             (if id
-                 (progn
-                   (message "Game started! ID: %s" id)
-                   (lichess-game-play id))
-               (message "Error: No game ID returned from Lichess.")))
+     (if (lichess-http-result-success res)
+         (let* ((json (lichess-http-result-data res))
+                (id (lichess-util--aget json 'id)))
+           (if id
+               (progn
+                 (message "Game started! ID: %s" id)
+                 (lichess-game-play id))
+             (message "Error: No game ID returned from Lichess.")))
+       (let* ((err (lichess-http-result-error res))
+              (status (car err))
+              (json (cdr err)))
          (message "Lichess AI error: %d %s"
                   status
                   (or (lichess-util--aget json 'error) "")))))
