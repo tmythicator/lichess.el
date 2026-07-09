@@ -18,7 +18,6 @@
 (require 'url)
 (require 'cl-lib)
 (require 'lichess-http)
-(require 'lichess-http)
 (require 'lichess-util)
 
 (defconst lichess-core-variants

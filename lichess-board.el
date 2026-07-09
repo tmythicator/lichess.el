@@ -28,38 +28,39 @@ Values: \"unicode\", \"ascii\"."
   :type '(choice (const "unicode") (const "ascii"))
   :group 'lichess)
 
+(defun lichess-board--gui-p ()
+  "Return non-nil if GUI SVG rendering is active."
+  (and (lichess-board-gui-available-p)
+       (string= lichess-board-gui-preferred-style "svg")))
+
+(defun lichess-board--active-style ()
+  "Return active style string based on environment capability and preferences."
+  (if (lichess-board-gui-available-p)
+      (or lichess-board-gui-preferred-style "svg")
+    (or lichess-board-tui-preferred-style "unicode")))
+
+(defun lichess-board--tui-style ()
+  "Return the TUI style name, resolving \"svg\" to fallback \"unicode\"."
+  (let ((style (lichess-board--active-style)))
+    (if (string= style "svg")
+        "unicode"
+      style)))
+
 (defun lichess-board-draw (pos &optional perspective highlights)
   "Render POS as a string.
 PERSPECTIVE: \`white', \`black', \`auto'.
 HIGHLIGHTS: List of squares to highlight.
 EVAL and INFO are read from POS."
-  (let* ((gui-avail (lichess-board-gui-available-p))
-         (style
-          (if gui-avail
-              lichess-board-gui-preferred-style
-            lichess-board-tui-preferred-style)))
-    (if (and (string= style "svg") gui-avail)
-        (lichess-board-gui-draw
-         pos perspective highlights (plist-get pos :eval))
-      (let ((tui-style
-             (if (string= style "svg")
-                 "unicode"
-               style)))
-        (lichess-board-tui-draw pos tui-style perspective)))))
+  (if (lichess-board--gui-p)
+      (lichess-board-gui-draw
+       pos perspective highlights (plist-get pos :eval))
+    (lichess-board-tui-draw pos (lichess-board--tui-style) perspective)))
 
 (defun lichess-board-draw-heading (pos &optional perspective)
   "Render heading string for POS using global style and PERSPECTIVE."
-  (let* ((gui-avail (lichess-board-gui-available-p))
-         (style
-          (if gui-avail
-              lichess-board-gui-preferred-style
-            lichess-board-tui-preferred-style))
-         (display-style
-          (if (and gui-avail (string= style "svg"))
-              "SVG"
-            (if (string= style "svg")
-                "unicode"
-              style))))
+  (let ((display-style (if (lichess-board--gui-p)
+                           "SVG"
+                         (lichess-board--tui-style))))
     (lichess-board-tui-draw-heading pos display-style perspective)))
 
 (defun lichess-board-insert-board
@@ -68,23 +69,9 @@ EVAL and INFO are read from POS."
 PERSPECTIVE: `white`, `black`, or `auto`.
 HIGHLIGHTS: List of squares to highlight.
 Handles face application for TUI modes, avoiding interference with GUI SVGs."
-  (let* ((gui-avail (lichess-board-gui-available-p))
-         (style
-          (if gui-avail
-              lichess-board-gui-preferred-style
-            lichess-board-tui-preferred-style))
-         (gui-p (and gui-avail (string= style "svg")))
-         (board-str
-          (if gui-p
-              (lichess-board-gui-draw
-               pos perspective highlights (plist-get pos :eval))
-            (let ((tui-style
-                   (if (string= style "svg")
-                       "unicode"
-                     style)))
-              (lichess-board-tui-draw pos tui-style perspective))))
-         (start (point)))
-    (insert board-str)
+  (let ((gui-p (lichess-board--gui-p))
+        (start (point)))
+    (insert (lichess-board-draw pos perspective highlights))
     (unless gui-p
       (add-text-properties
        start (point) '(face lichess-core-board-face)))))
