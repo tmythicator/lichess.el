@@ -65,5 +65,30 @@
         (should (string-match-p "color=white" (plist-get plist :data)))
         (should (string-match-p "ratingRange=1500-1800" (plist-get plist :data)))))))
 
+(ert-deftest lichess-api-board-seek-stream-test ()
+  "Test that `lichess-api-board-seek-stream` correctly dispatches the POST stream request."
+  (let* ((calls '()))
+    (cl-letf (((symbol-function 'lichess-http-stream-open)
+               (lambda (endpoint &rest plist)
+                 (setq calls (cons (cons endpoint plist) calls))
+                 "mock-stream-process")))
+      (let ((stream
+             (lichess-api-board-seek-stream
+              15 10 "true" 'standard 'white "1500-1800"
+              :on-event #'ignore)))
+        (should (string= stream "mock-stream-process"))
+        (should (= (length calls) 1))
+        (should (string= (caar calls) "/api/board/seek"))
+        (let ((plist (cdar calls)))
+          (should (string= (plist-get plist :method) "POST"))
+          (should (string-match-p "time=15" (plist-get plist :data)))
+          (should (string-match-p "increment=10" (plist-get plist :data)))
+          (should (string-match-p "rated=true" (plist-get plist :data)))
+          (should (string-match-p "variant=standard" (plist-get plist :data)))
+          (should (string-match-p "color=white" (plist-get plist :data)))
+          (should (string-match-p "ratingRange=1500-1800" (plist-get plist :data)))
+          (should (equal (plist-get plist :headers)
+                         '(("Content-Type" . "application/x-www-form-urlencoded")))))))))
+
 (provide 'lichess-api-test)
 ;;; lichess-api-test.el ends here

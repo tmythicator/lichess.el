@@ -140,5 +140,34 @@
         (lichess-http-ndjson-close stream)
         (should (eq deleted-proc mock-proc))))))
 
+(ert-deftest lichess-http-defstream-test ()
+  "Test the `lichess-http-defstream` macro definition and behavior."
+  (let* ((calls '()))
+    (cl-letf (((symbol-function 'lichess-http-stream-open)
+               (lambda (endpoint &rest plist)
+                 (setq calls (cons (cons endpoint plist) calls))
+                 "mock-stream-object")))
+      ;; Define a temporary test stream endpoint
+      (lichess-http-defstream lichess-http--test-stream "/api/test-stream/:id"
+        "Temporary stream for testing."
+        :method POST
+        :path-params (id)
+        :post-params (param1 param2))
+
+      ;; Call the defined stream function
+      (let ((stream
+             (lichess-http--test-stream
+              123 "val1" nil
+              :on-event (lambda (_) nil))))
+        (should (string= stream "mock-stream-object"))
+        (should (= (length calls) 1))
+        (should (string= (caar calls) "/api/test-stream/123"))
+        (let ((plist (cdar calls)))
+          (should (string= (plist-get plist :method) "POST"))
+          (should (string= (plist-get plist :data) "param1=val1"))
+          (should (equal (plist-get plist :headers)
+                         '(("Content-Type" . "application/x-www-form-urlencoded"))))
+          (should (functionp (plist-get plist :on-event))))))))
+
 (provide 'lichess-http-test)
 ;;; lichess-http-test.el ends here
