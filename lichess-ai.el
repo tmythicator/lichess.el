@@ -24,12 +24,12 @@
   :type 'integer
   :group 'lichess)
 
-(defcustom lichess-ai-default-clock-limit 300
-  "Default clock limit in seconds (5 minutes)."
+(defcustom lichess-ai-default-clock-limit 5
+  "Default clock limit in minutes."
   :type 'integer
   :group 'lichess)
 
-(defcustom lichess-ai-default-clock-increment 3
+(defcustom lichess-ai-default-clock-increment 10
   "Default clock increment in seconds."
   :type 'integer
   :group 'lichess)
@@ -43,13 +43,13 @@
          (color
           (completing-read "Your Color: " '("white" "black" "random")
                            nil t "white"))
-         (limit
-          (read-number "Clock limit (seconds): "
+         (limit-min
+          (read-number "Clock limit (minutes): "
                        lichess-ai-default-clock-limit))
          (increment
           (read-number "Clock increment (seconds): "
                        lichess-ai-default-clock-increment)))
-    (lichess-ai--start-game level color limit increment)))
+    (lichess-ai--start-game level color (* limit-min 60) increment)))
 
 (defun lichess-ai--start-game (level color limit increment)
   "Send the POST request to Lichess to start a game.

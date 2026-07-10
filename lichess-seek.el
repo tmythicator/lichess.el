@@ -24,7 +24,7 @@
   "Seeking games on Lichess."
   :group 'lichess)
 
-(defcustom lichess-seek-default-time 15
+(defcustom lichess-seek-default-time 5
   "Default real-time seek initial clock time in minutes."
   :type 'number
   :group 'lichess-seek)

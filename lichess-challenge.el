@@ -19,12 +19,12 @@
 (require 'lichess-util)
 (require 'lichess-challenge-list)
 
-(defcustom lichess-challenge-default-clock-limit 300
-  "Default clock limit in seconds (5 minutes)."
+(defcustom lichess-challenge-default-clock-limit 5
+  "Default clock limit in minutes."
   :type 'integer
   :group 'lichess)
 
-(defcustom lichess-challenge-default-clock-increment 3
+(defcustom lichess-challenge-default-clock-increment 10
   "Default clock increment in seconds."
   :type 'integer
   :group 'lichess)
@@ -82,8 +82,8 @@
           (color
            (completing-read "Your Color: " '("white" "black" "random")
                             nil t "random"))
-          (limit
-           (read-number "Clock limit (seconds): "
+          (limit-min
+           (read-number "Clock limit (minutes): "
                         lichess-challenge-default-clock-limit))
           (increment
            (read-number "Clock increment (seconds): "
@@ -91,7 +91,7 @@
        (if (string-empty-p input)
            (message "No username provided, challenge cancelled.")
          (lichess-challenge--send
-          username-id rated color limit increment variant))))))
+          username-id rated color (* limit-min 60) increment variant))))))
 
 (defun lichess-challenge--send
     (username rated color limit increment variant)
