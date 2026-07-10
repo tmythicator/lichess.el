@@ -152,13 +152,6 @@ All parameters are derived from the buffer-local `lichess-game--state'."
         (and (consp st) (lichess-util--aget st 'fen)))))
 
 
-(defun lichess-game--get-fen-fullmove (fen)
-  "Extract the fullmove number (last field) from FEN."
-  (let ((parts (split-string fen " ")))
-    (if (>= (length parts) 6)
-        (string-to-number (car (last parts)))
-      1)))
-
 (defun lichess-game--fen-history-vpush (fen)
   "Append FEN to the `lichess-game--fen-history' via STATE.
 Handles stream replays by resetting history if a move regression is detected
@@ -169,8 +162,8 @@ immediately after the initial summary state."
            (last (and (> len 0) (aref hist (1- len)))))
       ;; Detect Replay: If history has 1 item (Summary) and new FEN is earlier, reset.
       (when (and (= len 1) last)
-        (let ((last-fm (lichess-game--get-fen-fullmove last))
-              (new-fm (lichess-game--get-fen-fullmove fen)))
+        (let ((last-fm (lichess-fen--fullmove last))
+              (new-fm (lichess-fen--fullmove fen)))
           (when (< new-fm last-fm)
             (setf hist (vector))
             (plist-put state :fen-history hist))))
@@ -244,11 +237,7 @@ immediately after the initial summary state."
                 (if (and (>= idx 0) (< idx (length hist)))
                     (aref hist idx)
                   nil))
-               (pos
-                (and fen
-                     (ignore-errors
-                       (lichess-fen-parse fen))))
-               (stm (and pos (plist-get pos :stm)))
+               (stm (and fen (lichess-fen--stm fen)))
                (now (float-time))
                (elapsed-ms (* (- now last-t) 1000)))
 

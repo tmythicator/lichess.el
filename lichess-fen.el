@@ -70,6 +70,33 @@ See `lichess-core.el` for the plist structure definition."
      :halfmove hmc
      :fullmove (max 1 fmn))))
 
+(defun lichess-fen--stm (fen)
+  "Quickly extract side to move (stm) symbol (\\='w or \\='b) from FEN.
+Does not parse the rest of the board to save allocations."
+  (when (stringp fen)
+    (let*
+        ((raw-fen
+          (if (string= fen "startpos")
+              "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+            fen))
+         (fields (split-string (string-trim raw-fen) " +" t))
+         (active (nth 1 fields)))
+      (if (and active (string= active "b"))
+          'b
+        'w))))
+
+(defun lichess-fen--fullmove (fen)
+  "Quickly extract the fullmove number from FEN."
+  (if (stringp fen)
+      (let* ((raw-fen (if (string= fen "startpos")
+                          "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+                        fen))
+             (fields (split-string (string-trim raw-fen) " +" t)))
+        (if (>= (length fields) 6)
+            (string-to-number (nth 5 fields))
+          1))
+    1))
+
 (defun lichess-fen--rows->board (rows)
   "Convert 8 FEN ROWS into an 8×8 vector of piece chars.
 Each element of ROWS is a string like \"rnbqkbnr\" or \"3p4\".
