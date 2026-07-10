@@ -70,6 +70,45 @@
       ;; Invoke the callback to complete
       (funcall (cadar calls) '(200 . "success-data")))))
 
+(ert-deftest lichess-http-parse-ndjson-test ()
+  "Test `lichess-http-parse-ndjson`."
+  (let* ((data "{\"id\":\"user1\",\"name\":\"Alice\"}\n{\"id\":\"user2\",\"name\":\"Bob\"}\n\n{\"error\":\"some error\"}")
+         (parsed (lichess-http-parse-ndjson data)))
+    (should (= (length parsed) 3))
+    (should (equal (cdr (assoc 'name (nth 0 parsed))) "Alice"))
+    (should (equal (cdr (assoc 'name (nth 1 parsed))) "Bob"))
+    (should (equal (cdr (assoc 'error (nth 2 parsed))) "some error")))
+  (should (equal (lichess-http-parse-ndjson nil) nil))
+  (should (equal (lichess-http-parse-ndjson "   \n  \n ") nil)))
+
+(ert-deftest lichess-http-defendpoint-raw-test ()
+  "Test `lichess-http-defendpoint` macro with :parse-type raw and :accept-header."
+  (let* ((calls '())
+         (mock-request (lambda (endpoint callback &rest plist)
+                         (setq calls (cons (list endpoint callback plist) calls)))))
+    (cl-letf (((symbol-function 'lichess-http-request) mock-request))
+      ;; Define a temporary test endpoint
+      (lichess-http-defendpoint lichess-http--test-raw-endpoint "/api/test-raw"
+        "Temporary endpoint for testing raw NDJSON GET."
+        :parse-type raw
+        :accept-header "application/x-ndjson")
+
+      ;; Call the defined endpoint
+      (lichess-http--test-raw-endpoint (lambda (res)
+                                         (should (lichess-http-result-success res))
+                                         (should (equal (lichess-http-result-data res) "raw data"))))
+
+      ;; Verify dispatch
+      (should (= (length calls) 1))
+      (should (string= (caar calls) "/api/test-raw"))
+      (let ((plist (caddar calls)))
+        (should (string= (plist-get plist :method) "GET"))
+        (should (eq (plist-get plist :parse) 'raw))
+        (should (string= (plist-get plist :accept) "application/x-ndjson")))
+
+      ;; Invoke the callback to complete
+      (funcall (cadar calls) '(200 . "raw data")))))
+
 (ert-deftest lichess-http-stream-test ()
   "Test that `lichess-http-ndjson-open` and `lichess-http-ndjson-close` work with the struct."
   (let* ((mock-proc "mock-process-object")
