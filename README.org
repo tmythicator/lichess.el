@@ -14,6 +14,9 @@ Challenge Stockfish and play directly from Emacs:
 
 [[file:demo/lichess-ai.gif]]
 
+** Playing against Friends & Strangers
+You can also seek games against real humans in matchmaking (via =M-x lichess-seek-game=) or challenge your friends/specific players directly (via =M-x lichess-challenge-user=).
+
 ** Lichess TV
 Here is a quick demonstration of browsing Lichess TV and watching a live game:
 
@@ -113,10 +116,14 @@ You can configure Lichess.el using =M-x customize-group RET lichess RET= or by s
 - =lichess-board-gui-asset-path=: Directory containing SVG piece assets.
 - =M-x lichess-board-gui-toggle-theme=: Switch board color theme (Brown, Blue, Green)
 
-*** Game Settings (AI)
+*** Game Settings
 - =lichess-ai-default-level=: Default Stockfish difficulty level (1-8). Default: 1.
-- =lichess-ai-default-clock-limit=: Initial clock limit in seconds. Default: 300 (5 mins).
-- =lichess-ai-default-clock-increment=: Clock increment in seconds. Default: 3.
+- =lichess-ai-default-clock-limit=: Initial clock limit in minutes for AI games. Default: 5.
+- =lichess-ai-default-clock-increment=: Clock increment in seconds for AI games. Default: 10.
+- =lichess-challenge-default-clock-limit=: Initial clock limit in minutes for challenges against friends. Default: 5.
+- =lichess-challenge-default-clock-increment=: Clock increment in seconds for challenges against friends. Default: 10.
+- =lichess-seek-default-time=: Initial clock time in minutes for seeking games. Default: 5.
+- =lichess-seek-default-increment=: Clock increment in seconds for seeking games. Default: 10.
 
 *** Network & Performance
 - =lichess-tv-fetch-delay=: Delay (seconds) between TV game fetches to prevent rate-limiting. Default: 0.12.
@@ -144,14 +151,20 @@ Here is a complete configuration using =use-package=:
 
 * Usage
 - =M-x lichess= -> main entrypoint, shows dispatcher to all subcommands
-- =M-x lichess-tv= -> show TV channels list
+
+** Watching & Browsing
+- =M-x lichess-tv= -> show Lichess TV channels list
   - =g= refreshes list
   - =RET= opens game on the current line
 - =M-x lichess-broadcast-list= -> browse live tournament broadcasts
-- =M-x lichess-ai-challenge= -> start a new game against Stockfish
-- =M-x lichess-seek-game= -> seek/matchmake game with a real opponent (real-time or correspondence)
+- =M-x lichess-game-watch= -> watch a specific game ID in real-time
+
+** Playing Games
+- =M-x lichess-ai-challenge= -> play a game against Stockfish (AI)
+- =M-x lichess-challenge-user= -> challenge a friend/specific user to a game
+- =M-x lichess-challenge-list= -> list, accept, or cancel incoming/outgoing challenges
+- =M-x lichess-seek-game= -> seek/matchmake game with a real opponent (stranger)
 - =M-x lichess-seek-cancel= -> cancel the active real-time seek
-- =M-x lichess-game-watch= -> watch a specific game ID
 
 * How to Play
 When in a game buffer (started via =M-x lichess-ai-challenge=):
