@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0] - 2026-07-10
+
+### Added
+
+- **Matchmaking / Seek Game**: Real-time and correspondence game matchmaking against random opponents using the Lichess Board API (`M-x lichess-seek-game` and `M-x lichess-seek-cancel`).
+
+### Changed
+
+- **HTTP Transport**: Updated connection stream handler to support POST method, headers, and form-urlencoded payload builder.
+- **Versioning**: Bumped project version to 1.0.
+
 ## [0.9] - 2026-07-09
 
 ### Added

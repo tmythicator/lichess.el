@@ -43,6 +43,7 @@ Lichess.el is designed to work seamlessly in both *GUI* and *terminal* (=emacs -
 - Playing
   - [X] Challenge Lichess AI (=M-x lichess-ai-challenge=)
   - [X] Challenge Friends (=M-x lichess-challenge-user=)
+  - [X] Seek / Matchmake against real opponents (=M-x lichess-seek-game=) (v1.0)
   - [X] Manage Challenges (=M-x lichess-challenge-list=) - List, Cancel, Accept.
   - [X] Make moves with =m= (UCI format)
   - [X] Resign with =R=
@@ -65,6 +66,7 @@ Lichess.el is designed to work seamlessly in both *GUI* and *terminal* (=emacs -
   - [X] GUI Rendering (SVG) (v0.2)
   - [X] Material Diff (v0.6)
   - [X] Tournament Broadcasts (v0.7)
+  - [X] Matchmaking / Seek Game (v1.0)
   - [ ] Puzzles & tactics
 * Installation
 Clone and add to your load path:
@@ -147,6 +149,8 @@ Here is a complete configuration using =use-package=:
   - =RET= opens game on the current line
 - =M-x lichess-broadcast-list= -> browse live tournament broadcasts
 - =M-x lichess-ai-challenge= -> start a new game against Stockfish
+- =M-x lichess-seek-game= -> seek/matchmake game with a real opponent (real-time or correspondence)
+- =M-x lichess-seek-cancel= -> cancel the active real-time seek
 - =M-x lichess-game-watch= -> watch a specific game ID
 
 * How to Play
