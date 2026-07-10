@@ -87,9 +87,16 @@
                  cur-id (get-text-property bol 'lichess-game-id)))
               ;; 2) fallback: locate by ID across the buffer
               (when (and id (not (equal id cur-id)))
-                (let ((hit
-                       (text-property-any
-                        (point-min) (point-max) 'lichess-game-id id)))
+                (let ((hit nil)
+                      (pos (point-min)))
+                  (while (and (not hit) (< pos (point-max)))
+                    (if (equal
+                         (get-text-property pos 'lichess-game-id) id)
+                        (setq hit pos)
+                      (setq pos
+                            (next-single-property-change
+                             pos 'lichess-game-id
+                             nil (point-max)))))
                   (when hit
                     (goto-char hit)
                     (setq
