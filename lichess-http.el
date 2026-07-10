@@ -318,6 +318,21 @@ Arguments:
   "Create a failed Lichess API result containing ERR."
   (make-lichess-http-result :success nil :error err))
 
+(defun lichess-http-parse-ndjson (data)
+  "Parse a raw NDJSON string DATA into a list of parsed JSON objects."
+  (when (stringp data)
+    (let ((lines (split-string (string-trim data) "\n" t))
+          (json-object-type 'alist)
+          (json-array-type 'list)
+          (parsed '()))
+      (dolist (line lines)
+        (let ((trimmed (string-trim line)))
+          (unless (string-empty-p trimmed)
+            (condition-case nil
+                (push (json-read-from-string trimmed) parsed)
+              (error nil)))))
+      (nreverse parsed))))
+
 (defmacro lichess-http-with-ok (binding &rest body)
   "Bind RESULT-EXPR to VAR in BINDING and execute BODY if successful.
 Otherwise, return the error result.
@@ -334,10 +349,12 @@ Format: (lichess-http-with-ok (VAR RESULT-EXPR) BODY...)"
 ;;;; API Core Call Wrappers
 
 (defun lichess-http--call-get
-    (endpoint callback &optional headers anonymous)
+    (endpoint callback &optional headers anonymous parse-type accept-header)
   "GET JSON from ENDPOINT and call CALLBACK with a `lichess-http-result'.
 Optional HEADERS is an alist of headers.
-If ANONYMOUS is non-nil, the request does not include authorization."
+If ANONYMOUS is non-nil, the request does not include authorization.
+PARSE-TYPE controls response parsing: \\='json (default) or \\='raw.
+ACCEPT-HEADER specifies the Accept header (defaults to \"application/json\")."
   (lichess-http-request endpoint
                         (lambda (res-cons)
                           (let* ((status (car res-cons))
@@ -350,9 +367,9 @@ If ANONYMOUS is non-nil, the request does not include authorization."
                                      (cons status val)))))
                             (funcall callback res)))
                         :method "GET"
-                        :accept "application/json"
+                        :accept (or accept-header "application/json")
                         :headers headers
-                        :parse 'json
+                        :parse (or parse-type 'json)
                         :anonymous anonymous))
 
 (defun lichess-http--call-post
@@ -416,7 +433,8 @@ KEYS is a plist of options:
   :path-params  List of variables to replace in PATH.
   :query-params List of variables to send as query arguments.
   :post-params  List of variables to send as POST form-urlencoded fields.
-  :parse-type   Parsing type for POST: `json` (default) or `raw`."
+  :parse-type   Parsing type: `json` (default) or `raw`.
+  :accept-header Custom Accept header string."
   (declare (indent 2) (doc-string 3))
   (let*
       ((method (or (plist-get keys :method) 'GET))
@@ -424,6 +442,7 @@ KEYS is a plist of options:
        (query-params (plist-get keys :query-params))
        (post-params (plist-get keys :post-params))
        (parse-type (or (plist-get keys :parse-type) 'json))
+       (accept-header (plist-get keys :accept-header))
        ;; Build the function argument list: path-params, query/post params, callback
        (other-args
         (append
@@ -516,8 +535,8 @@ KEYS is a plist of options:
                     (if query-str
                         (concat resolved-path "?" query-str)
                       resolved-path)
-                    callback))
-              `(lichess-http--call-get resolved-path callback))))))))
+                    callback nil nil ',parse-type ,accept-header))
+              `(lichess-http--call-get resolved-path callback nil nil ',parse-type ,accept-header))))))))
 
 (defmacro lichess-http-defstream (name path docstring &rest keys)
   "Define an NDJSON stream endpoint function NAME.

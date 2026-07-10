@@ -38,20 +38,16 @@
    (lambda (res)
      (if (lichess-http-result-success res)
          (let* ((data (lichess-http-result-data res))
-                (lines (split-string (string-trim data) "\n" t))
+                (objects (lichess-http-parse-ndjson data))
                 (friends
                  (mapcar
-                  (lambda (line)
-                    (condition-case nil
-                        (let* ((obj (json-read-from-string line))
-                               (id (lichess-util--aget obj 'id))
-                               (name (lichess-util--aget obj 'name)))
-                          (if (and id name)
-                              (cons name id)
-                            (cons (or name id line) (or id line))))
-                      (error
-                       (cons line line))))
-                  lines)))
+                  (lambda (obj)
+                    (let ((id (lichess-util--aget obj 'id))
+                          (name (lichess-util--aget obj 'name)))
+                      (if (and id name)
+                          (cons name id)
+                        (cons (or name id "Unknown") (or id "unknown")))))
+                  objects)))
            (funcall callback :ok friends))
        (let* ((err (lichess-http-result-error res))
               (status (car err)))

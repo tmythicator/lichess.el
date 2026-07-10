@@ -104,21 +104,13 @@ CALLBACK: `lichess-http-result`."
  :method POST
  :path-params (id))
 
-(defun lichess-api-get-following (callback)
-  "Fetch the list of users followed by current user.
+(lichess-http-defendpoint
+ lichess-api-get-following
+ "/api/rel/following"
+ "Fetch the list of users followed by current user.
 CALLBACK: `lichess-http-result`."
-  (lichess-http-request
-   "/api/rel/following"
-   (lambda (res-cons)
-     (let* ((status (car res-cons))
-            (val (cdr res-cons))
-            (res
-             (if (and (>= status 200) (< status 300))
-                 (lichess-http-result-ok val)
-               (lichess-http-result-err (cons status val)))))
-       (funcall callback res)))
-   :accept "application/x-ndjson"
-   :parse 'raw))
+ :parse-type raw
+ :accept-header "application/x-ndjson")
 
 (defun lichess-api-cloud-eval (fen callback)
   "Fetch cloud evaluation for FEN.
