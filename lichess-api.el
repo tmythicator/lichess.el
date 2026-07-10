@@ -105,8 +105,7 @@ CALLBACK: `lichess-http-result`."
  :path-params (id))
 
 (lichess-http-defendpoint
- lichess-api-get-following
- "/api/rel/following"
+ lichess-api-get-following "/api/rel/following"
  "Fetch the list of users followed by current user.
 CALLBACK: `lichess-http-result`."
  :parse-type raw

@@ -46,7 +46,8 @@
                           (name (lichess-util--aget obj 'name)))
                       (if (and id name)
                           (cons name id)
-                        (cons (or name id "Unknown") (or id "unknown")))))
+                        (cons
+                         (or name id "Unknown") (or id "unknown")))))
                   objects)))
            (funcall callback :ok friends))
        (let* ((err (lichess-http-result-error res))

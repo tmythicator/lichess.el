@@ -330,7 +330,8 @@ Arguments:
           (unless (string-empty-p trimmed)
             (condition-case nil
                 (push (json-read-from-string trimmed) parsed)
-              (error nil)))))
+              (error
+               nil)))))
       (nreverse parsed))))
 
 (defmacro lichess-http-with-ok (binding &rest body)
@@ -349,7 +350,8 @@ Format: (lichess-http-with-ok (VAR RESULT-EXPR) BODY...)"
 ;;;; API Core Call Wrappers
 
 (defun lichess-http--call-get
-    (endpoint callback &optional headers anonymous parse-type accept-header)
+    (endpoint
+     callback &optional headers anonymous parse-type accept-header)
   "GET JSON from ENDPOINT and call CALLBACK with a `lichess-http-result'.
 Optional HEADERS is an alist of headers.
 If ANONYMOUS is non-nil, the request does not include authorization.
@@ -531,12 +533,22 @@ KEYS is a plist of options:
                         (query-str
                          (and filtered
                               (url-build-query-string filtered))))
-                   (lichess-http--call-get
-                    (if query-str
-                        (concat resolved-path "?" query-str)
-                      resolved-path)
-                    callback nil nil ',parse-type ,accept-header))
-              `(lichess-http--call-get resolved-path callback nil nil ',parse-type ,accept-header))))))))
+                   (lichess-http--call-get (if query-str
+                                               (concat
+                                                resolved-path
+                                                "?"
+                                                query-str)
+                                             resolved-path)
+                                           callback
+                                           nil
+                                           nil
+                                           ',parse-type
+                                           ,accept-header))
+              `(lichess-http--call-get resolved-path callback
+                                       nil
+                                       nil
+                                       ',parse-type
+                                       ,accept-header))))))))
 
 (defmacro lichess-http-defstream (name path docstring &rest keys)
   "Define an NDJSON stream endpoint function NAME.

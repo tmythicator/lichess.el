@@ -88,10 +88,12 @@ Does not parse the rest of the board to save allocations."
 (defun lichess-fen--fullmove (fen)
   "Quickly extract the fullmove number from FEN."
   (if (stringp fen)
-      (let* ((raw-fen (if (string= fen "startpos")
-                          "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-                        fen))
-             (fields (split-string (string-trim raw-fen) " +" t)))
+      (let*
+          ((raw-fen
+            (if (string= fen "startpos")
+                "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+              fen))
+           (fields (split-string (string-trim raw-fen) " +" t)))
         (if (>= (length fields) 6)
             (string-to-number (nth 5 fields))
           1))
