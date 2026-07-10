@@ -91,7 +91,12 @@
        (if (string-empty-p input)
            (message "No username provided, challenge cancelled.")
          (lichess-challenge--send
-          username-id rated color (* limit-min 60) increment variant))))))
+          username-id
+          rated
+          color
+          (* limit-min 60)
+          increment
+          variant))))))
 
 (defun lichess-challenge--send
     (username rated color limit increment variant)
