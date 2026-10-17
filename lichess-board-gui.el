@@ -33,6 +33,13 @@
   :type 'color
   :group 'lichess)
 
+
+(defcustom lichess-board-gui-square-size 45
+  "Size of single square on board in pixels."
+  :type 'integer
+  :group 'lichess)
+
+
 (defvar lichess-board-gui-themes
   '(("brown" . ("#f0d9b5" . "#b58863"))
     ("blue" . ("#dee3e6" . "#8ca2ad"))
@@ -114,7 +121,7 @@ Returns nil if EVAL-STR is invalid, pending, or unavailable."
 PERSPECTIVE: \\='white, \\='black, or \\='auto.
 HIGHLIGHTS: List of squares to highlight (e.g. \\='e4).
 EVAL: Optional evaluation string (e.g. \"+1.5\")."
-  (let* ((sq-size 45) ;; Size of one square in pixels
+  (let* ((sq-size lichess-board-gui-square-size)
          (board-size (* sq-size 8))
          (prob (and eval (lichess-board-gui--parse-eval eval)))
          (gauge-width
