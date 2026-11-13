@@ -110,6 +110,7 @@ You can configure Lichess.el using =M-x customize-group RET lichess RET= or by s
 *** Board Appearance
 - =lichess-board-gui-preferred-style=: Style for GUI frames ("svg", "unicode", "ascii"). Default: "svg".
 - =lichess-board-tui-preferred-style=: Style for Terminal frames ("unicode", "ascii"). Default: "unicode".
+- =lichess-board-gui-square-size=: Size of a single square on the board in pixels (GUI only). Default: 45.
 - =lichess-board-gui-light-square-color=: Color for light squares. Default: "#f0d9b5".
 - =lichess-board-gui-dark-square-color=: Color for dark squares. Default: "#b58863".
 - =lichess-core-chess-font=: Font family for Unicode chess pieces. Key for alignment in non-graphical modes or fallback.
