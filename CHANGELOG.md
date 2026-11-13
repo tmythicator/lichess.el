@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.1] - 2026-11-13
+
+### Added
+
+- **Customizable GUI Board Size**: Added `lichess-board-gui-square-size` to customize the SVG board square size in pixels (#4).
+
+### Changed
+
+- **Versioning**: Bumped project version to 1.0.1.
+
 ## [1.0] - 2026-07-10
 
 ### Added
